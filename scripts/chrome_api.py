@@ -56,39 +56,49 @@ class ChromeError(Exception):
 
 
 class ChromeBookmarks:
-    def __init__(self, wait: float = WAIT_SECONDS):
+    def __init__(self, wait: float = WAIT_SECONDS, max_poll: float = 15):
         self.wait = wait
+        self.max_poll = max_poll
 
-    def _run_js(self, js_code: str) -> str:
-        """Execute JavaScript in Chrome's active tab and return document.title."""
+    def _exec_js(self, js_code: str) -> str:
+        """Execute JavaScript in Chrome and return the immediate eval result."""
         escaped = js_code.replace("\\", "\\\\").replace('"', '\\"')
         cmd = (
             f'tell application "Google Chrome" to execute front window\'s '
             f'active tab javascript "{escaped}"'
         )
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["osascript", "-e", cmd],
-                capture_output=True, text=True, check=True, timeout=10,
+                capture_output=True, text=True, check=True, timeout=15,
             )
+            return result.stdout.strip()
         except subprocess.CalledProcessError as e:
             raise ChromeError(f"AppleScript failed: {e.stderr.strip()}") from e
         except subprocess.TimeoutExpired:
             raise ChromeError("AppleScript timed out")
 
-        time.sleep(self.wait)
-        return self._read_title()
-
     def _read_title(self) -> str:
-        result = subprocess.run(
-            [
-                "osascript", "-e",
-                'tell application "Google Chrome" to execute front window\'s '
-                'active tab javascript "document.title"',
-            ],
-            capture_output=True, text=True, check=True, timeout=10,
+        return self._exec_js("document.title")
+
+    def _run_js_and_poll(self, js_code: str, expect_prefix: str) -> str:
+        """Execute JS, then poll document.title until it starts with expect_prefix."""
+        self._exec_js(js_code)
+        deadline = time.time() + self.max_poll
+        time.sleep(self.wait)
+
+        while time.time() < deadline:
+            title = self._read_title()
+            if title.startswith(expect_prefix):
+                return title
+            time.sleep(0.5)
+
+        title = self._read_title()
+        if title.startswith(expect_prefix):
+            return title
+        raise ChromeError(
+            f"Timed out waiting for '{expect_prefix}...', got: {title[:100]}"
         )
-        return result.stdout.strip()
 
     @staticmethod
     def check_chrome_running():
@@ -99,13 +109,37 @@ class ChromeBookmarks:
         if result.returncode != 0:
             raise ChromeError("Google Chrome is not running")
 
+    def ensure_bookmarks_page(self):
+        """Navigate active tab to chrome://bookmarks if not already there.
+        The chrome.bookmarks API is only available on chrome:// pages."""
+        try:
+            url = self._exec_js("window.location.href")
+            if url.startswith("chrome://"):
+                return
+        except ChromeError:
+            pass
+
+        try:
+            subprocess.run(
+                [
+                    "osascript", "-e",
+                    'tell application "Google Chrome" to set URL of active tab '
+                    'of front window to "chrome://bookmarks/"',
+                ],
+                capture_output=True, text=True, check=True, timeout=10,
+            )
+            time.sleep(2)
+        except subprocess.CalledProcessError as e:
+            raise ChromeError(f"Failed to navigate to bookmarks: {e.stderr}") from e
+
     # ── Read Operations ──
 
     def get_tree(self) -> list[BookmarkNode]:
         """Get the full bookmark tree as a flat list of top-level nodes."""
         self.check_chrome_running()
+        self.ensure_bookmarks_page()
 
-        self._run_js("""
+        title = self._run_js_and_poll("""
 chrome.bookmarks.getTree(function(tree) {
   var items = [];
   function walk(node, parentId) {
@@ -119,15 +153,10 @@ chrome.bookmarks.getTree(function(tree) {
   }
   tree.forEach(function(root) { walk(root, null); });
   window._bkTree = items;
-  window._bkChunkIdx = 0;
   document.title = 'tree-ready:' + items.length;
 });
 'reading...';
-""")
-
-        title = self._read_title()
-        if not title.startswith("tree-ready:"):
-            raise ChromeError(f"Unexpected response: {title}")
+""", "tree-ready:")
 
         total = int(title.split(":")[1])
         all_items = self._read_chunks(total)
@@ -139,12 +168,14 @@ chrome.bookmarks.getTree(function(tree) {
         offset = 0
 
         while offset < total:
-            self._run_js(f"""
+            # Use a unique prefix per chunk so polling knows when it's ready
+            marker = f"chunk-{offset}:"
+            title = self._run_js_and_poll(f"""
 var chunk = window._bkTree.slice({offset}, {offset + chunk_size});
-document.title = JSON.stringify(chunk);
+document.title = '{marker}' + JSON.stringify(chunk);
 'ok';
-""")
-            raw = self._read_title()
+""", marker)
+            raw = title[len(marker):]
             try:
                 chunk = json.loads(raw)
                 all_items.extend(chunk)
@@ -180,16 +211,17 @@ document.title = JSON.stringify(chunk);
     def get_children(self, folder_id: str) -> list[dict]:
         """Get immediate children of a folder."""
         self.check_chrome_running()
-        self._run_js(f"""
+        marker = f"children-{folder_id}:"
+        title = self._run_js_and_poll(f"""
 chrome.bookmarks.getChildren('{folder_id}', function(children) {{
   var items = children.map(function(c) {{
     return {{id: c.id, title: c.title, url: c.url || null}};
   }});
-  document.title = JSON.stringify(items);
+  document.title = '{marker}' + JSON.stringify(items);
 }});
 'ok';
-""")
-        raw = self._read_title()
+""", marker)
+        raw = title[len(marker):]
         return json.loads(raw)
 
     # ── Write Operations ──
@@ -198,72 +230,63 @@ chrome.bookmarks.getChildren('{folder_id}', function(children) {{
         """Create a folder and return its ID."""
         self.check_chrome_running()
         safe_title = title.replace("'", "\\'")
-        self._run_js(f"""
+        result = self._run_js_and_poll(f"""
 chrome.bookmarks.create({{parentId: '{parent_id}', title: '{safe_title}'}}, function(f) {{
   document.title = 'created:' + f.id;
 }});
 'ok';
-""")
-        result = self._read_title()
-        if not result.startswith("created:"):
-            raise ChromeError(f"Failed to create folder: {result}")
+""", "created:")
         return result.split(":")[1]
 
     def move(self, bookmark_id: str, parent_id: str) -> bool:
         """Move a bookmark to a new parent folder."""
         self.check_chrome_running()
-        self._run_js(f"""
+        result = self._run_js_and_poll(f"""
 chrome.bookmarks.move('{bookmark_id}', {{parentId: '{parent_id}'}}, function() {{
   document.title = 'moved:{bookmark_id}';
 }});
 'ok';
-""")
-        result = self._read_title()
+""", "moved:")
         return result == f"moved:{bookmark_id}"
 
     def move_batch(self, bookmark_ids: list[str], parent_id: str) -> int:
         """Move multiple bookmarks to a parent folder. Returns count moved."""
         self.check_chrome_running()
         ids_js = ",".join(f"'{bid}'" for bid in bookmark_ids)
-        self._run_js(f"""
+        result = self._run_js_and_poll(f"""
 var ids = [{ids_js}];
 var target = '{parent_id}';
 var done = 0;
 ids.forEach(function(id) {{
   chrome.bookmarks.move(id, {{parentId: target}}, function() {{
     done++;
-    if (done === ids.length) document.title = 'moved:' + done;
+    if (done === ids.length) document.title = 'batch-moved:' + done;
   }});
 }});
 'moving...';
-""")
-        result = self._read_title()
-        if result.startswith("moved:"):
-            return int(result.split(":")[1])
-        return 0
+""", "batch-moved:")
+        return int(result.split(":")[1])
 
     def remove(self, bookmark_id: str) -> bool:
         """Remove a bookmark or empty folder."""
         self.check_chrome_running()
-        self._run_js(f"""
+        result = self._run_js_and_poll(f"""
 chrome.bookmarks.remove('{bookmark_id}', function() {{
   document.title = 'removed:{bookmark_id}';
 }});
 'ok';
-""")
-        result = self._read_title()
+""", "removed:")
         return result == f"removed:{bookmark_id}"
 
     def remove_tree(self, folder_id: str) -> bool:
         """Remove a folder and all its contents."""
         self.check_chrome_running()
-        self._run_js(f"""
+        result = self._run_js_and_poll(f"""
 chrome.bookmarks.removeTree('{folder_id}', function() {{
   document.title = 'removed:{folder_id}';
 }});
 'ok';
-""")
-        result = self._read_title()
+""", "removed:")
         return result == f"removed:{folder_id}"
 
     # ── Analysis Operations ──
