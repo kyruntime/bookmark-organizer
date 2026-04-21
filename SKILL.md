@@ -23,7 +23,9 @@ Before starting, run through these checks:
    - Menu → View → Developer → Allow JavaScript from Apple Events
    - If the user gets an authorization error, guide them to this setting.
 
-The skill will automatically navigate Chrome to `chrome://bookmarks/` (the API only works on `chrome://` pages).
+The skill will automatically navigate Chrome's active tab to `chrome://bookmarks/` (the API only works on `chrome://` pages).
+
+**Do NOT activate or bring Chrome to the foreground.** Use `set URL of active tab` only, not `activate`. The user should stay in their current application (Cursor) while the skill operates on Chrome in the background.
 
 ## Core Workflow
 

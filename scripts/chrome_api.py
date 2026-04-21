@@ -111,7 +111,8 @@ class ChromeBookmarks:
 
     def ensure_bookmarks_page(self):
         """Navigate active tab to chrome://bookmarks if not already there.
-        The chrome.bookmarks API is only available on chrome:// pages."""
+        The chrome.bookmarks API is only available on chrome:// pages.
+        Does NOT activate/focus Chrome — operates silently in the background."""
         try:
             url = self._exec_js("window.location.href")
             if url.startswith("chrome://"):
