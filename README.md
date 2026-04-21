@@ -9,7 +9,7 @@
 | **智能分析** | ✅ | 分析书签标题、URL、域名，自动推荐分类方案 |
 | **交互式规划** | ✅ | 展示拟定结构，用户确认后再执行 |
 | **创建与移动** | ✅ | 通过 Chrome Bookmarks API 创建文件夹、移动书签 |
-| **去重检测** | 🚧 | 检测并合并重复的 URL |
+| **去重检测** | ✅ | 检测并合并重复的 URL（支持 http/https 归一化） |
 | **死链检查** | 🚧 | 识别已失效的链接（404） |
 | **备份与回滚** | ✅ | 操作前自动快照，不满意可一键恢复到之前的状态 |
 | **多浏览器** | 🔜 | 目前支持 Chrome（macOS）；Safari、Firefox、Edge 计划中 |
@@ -116,10 +116,12 @@ bookmark-organizer/
 ├── install.sh                 # 一键安装脚本
 ├── examples.md                # 使用示例
 ├── scripts/
-│   ├── chrome_bookmarks.sh    # Chrome Bookmarks API 的 Shell 封装
+│   ├── chrome_api.py          # Python 核心库（推荐）
+│   ├── chrome_bookmarks.sh    # Shell 封装（轻量场景）
 │   ├── backup_restore.sh      # 备份与一键恢复
 │   ├── analyze.py             # 书签分析与分类建议
-│   └── validate.py            # 整理后的结构验证
+│   ├── validate.py            # 整理后的结构验证
+│   └── smoke_test.py          # 冒烟测试
 └── .gitignore
 ```
 

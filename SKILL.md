@@ -213,32 +213,28 @@ chrome.bookmarks.getTree(function(tree) {
 
 ## Advanced Operations
 
-### Find Duplicate Bookmarks
+### Find and Remove Duplicate Bookmarks
+
+Use the Python API for dedup — it normalizes URLs (trailing slash, http/https) for more accurate matching:
 
 ```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.getTree(function(tree) {
-  var urls = {};
-  var dupes = [];
-  function walk(node) {
-    if (node.url) {
-      var u = node.url.replace(/\\/$/,\"\");
-      if (urls[u]) {
-        dupes.push(node.id + \"|\" + urls[u] + \"|\" + u);
-      } else {
-        urls[u] = node.id;
-      }
-    }
-    if (node.children) node.children.forEach(walk);
-  }
-  tree[0].children.forEach(walk);
-  document.title = \"dupes:\" + dupes.length + \"|\" + dupes.slice(0,50).join(\";\");
-});
-\"scanning...\";
-"'
+python3 {baseDir}/scripts/chrome_api.py dupes
 ```
 
-Present duplicates to user and ask which to remove before deleting.
+This prints all duplicate groups with their IDs and locations. Present the results to the user in a clear table format, then ask which copies to remove. For each removal, use:
+
+```bash
+python3 -c "
+from scripts.chrome_api import ChromeBookmarks
+cb = ChromeBookmarks()
+cb.remove('BOOKMARK_ID')
+"
+```
+
+**Dedup rules:**
+- Never auto-delete without user confirmation
+- When asking which to keep, suggest keeping the copy in the more specific/relevant folder
+- After removal, verify no orphaned folders remain
 
 ### Backup & Restore
 
