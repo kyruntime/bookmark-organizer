@@ -148,7 +148,9 @@ cd bookmark-organizer
 python3 scripts/smoke_test.py
 ```
 
-预期输出 `Results: 6/6 passed`。脚本会自动导航到 `chrome://bookmarks` 页面（API 仅在该页面可用）。
+预期输出 `Results: 6/6 passed`。
+
+> **注意**：脚本会自动把 Chrome 当前标签页导航到 `chrome://bookmarks`（API 仅在该页面可用），运行前请保存当前页面的工作。运行过程中会创建一个临时测试文件夹并立即删除，不会影响你的书签。
 
 ## 技术原理
 
