@@ -91,7 +91,6 @@ Just tell the AI Agent:
 - "Help me organize my Chrome bookmarks"
 - "Find duplicate bookmarks"
 - "Split the Tech folder into sub-categories"
-- "帮我整理一下 Chrome 书签"
 
 The agent automatically loads this skill based on trigger words in the skill description.
 
