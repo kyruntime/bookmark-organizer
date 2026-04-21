@@ -5,7 +5,6 @@ description: >-
   Chrome's native Bookmarks API via AppleScript. Use when the user asks to
   organize bookmarks, clean up bookmarks, sort bookmarks, find duplicate
   bookmarks, or manage their browser bookmark collection.
-  Supports Chinese and English.
 ---
 
 # Bookmark Organizer
@@ -131,7 +130,7 @@ This is a conversational skill. The user drives the final structure.
 5. **Respect user overrides.** If user wants to move items to a different parent, adjust the plan.
 6. **No fixed depth limit.** Support 2-level, 3-level, or even 4-level nesting if the user wants it.
 7. **Confirm before executing** any changes.
-8. **Use the user's language** for folder names. If user speaks Chinese, name folders in Chinese.
+8. **Match the user's language** — respond and name folders in whatever language the user is using. Do not assume any specific language.
 
 Example interaction for **already organized** bookmarks:
 ```
