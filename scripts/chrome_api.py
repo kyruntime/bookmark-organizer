@@ -139,7 +139,10 @@ tell application "Google Chrome"
         set active tab index of w to foundIdx
         return "found"
     else
-        tell w to make new tab with properties {URL:"chrome://bookmarks/"}
+        set prevCount to count of tabs of w
+        tell w to make new tab with properties {URL:"about:blank"}
+        delay 0.5
+        set URL of active tab of w to "chrome://bookmarks/"
         return "created"
     end if
 end tell'''

@@ -89,17 +89,17 @@ Proposed structure:
 
 This is a conversational skill. The user drives the final structure.
 
-**First, assess the current state:**
-- If bookmarks are **well-organized** (most items in named folders with clear hierarchy), show the **complete existing structure** (all levels) and ask "What would you like to adjust?"
-- If bookmarks are **messy** (many uncategorized items, flat structure, no clear folders), propose a reorganization plan starting from L1.
+**Analyze and directly propose a comprehensive plan:**
+
+After reading the bookmark tree, show the complete existing structure (all levels), then **directly propose a full reorganization plan**. Be proactive and thorough — don't hold back suggestions or default to minimal changes. The user asked for help organizing, so give them a real plan.
 
 **Planning rules:**
 
 1. **Show the full existing structure** when reading bookmarks — always include all levels (L1, L2, L3+), not just top-level. The user needs to see the complete picture to make decisions.
-2. **Propose changes based on what needs fixing**, not a full rewrite. If the structure is already 80% good, only suggest the 20% that needs work.
+2. **Be proactive and thorough.** Always propose concrete improvements: split oversized folders, merge overlapping categories, re-classify misplaced items, suggest new groupings. Don't say "your bookmarks are already fine" — there's always room for improvement.
 3. **Share your own observations and suggestions.** Don't just show the data — tell the user what you think could be improved and why. For example: "This folder has 200+ items, splitting by topic would make it easier to find things", or "These 3 folders overlap in content, merging them would reduce clutter". Be opinionated but open to the user's preferences.
 4. **Ask the user for their own ideas.** After presenting your analysis and suggestions, ask: "Do you have any specific ideas or preferences for how you'd like to organize these?" The user may have their own mental model or workflow that the data alone can't reveal.
-5. **Ask if user wants sub-categories** for large folders (50+ items). If yes, propose sub-folders.
+5. **Propose sub-categories** for large folders (50+ items) directly in the plan, don't just ask if the user wants them.
 6. **Support iterative deepening.** User may request further breakdown → propose deeper nesting within that folder.
 7. **Respect user overrides.** If user wants to move items to a different parent, adjust the plan.
 8. **No fixed depth limit.** Support 2-level, 3-level, or even 4-level nesting if the user wants it.
@@ -107,24 +107,25 @@ This is a conversational skill. The user drives the final structure.
 10. **Confirm before executing** any changes.
 11. **Match the user's language** — respond and name folders in whatever language the user is using. Do not assume any specific language.
 
-Example interaction for **already organized** bookmarks:
+Example interaction:
 ```
-Agent: "Your bookmarks are already well-organized:
+Agent: "Here's your current bookmark structure:
   ├── Work-Acme (50)
   │   ├── Dashboard (20)
   │   └── Docs (30)
   ├── Tech (120)
   │   ├── Java (30) ...
   └── Personal (40)
-  What would you like to adjust?"
-User:  "Tech is too crowded, split it more"
-Agent: "Here's Tech currently: [full L2+L3 listing]. I suggest..."
-```
 
-Example interaction for **messy** bookmarks:
-```
-Agent: "You have 500 bookmarks, most are uncategorized. Here's my proposed structure:
-  [full multi-level plan]. Shall I proceed?"
+  Issues I found:
+  1. Tech has 120 items — splitting into finer sub-categories
+  2. Personal mixes shopping and finance — splitting them
+  3. 15 items in Other Bookmarks should be moved
+
+  Here's my proposed new structure:
+  [full before/after plan]
+
+  Want me to adjust anything before executing?"
 User:  "Looks good, go ahead"
 Agent: → Execute
 ```
