@@ -81,6 +81,7 @@ After reading the tree, analyze it and propose a reorganization plan.
 - Identify domain clusters (e.g., many github.com links → "开发工具")
 - Detect uncategorized bookmarks (items directly in bookmark bar)
 - Find obvious groupings by title keywords
+- Identify existing folder structures worth preserving
 
 **Default category suggestions** (adapt based on actual content):
 
@@ -108,7 +109,29 @@ Proposed structure:
 └── 生活 (40 links)
 ```
 
-Wait for user confirmation before proceeding.
+**Wait for user confirmation before proceeding.**
+
+#### Interactive Planning Rules
+
+This is a conversational skill. The user drives the final structure:
+
+1. **Start with top-level (L1) proposal only.** Don't overwhelm with deep nesting upfront.
+2. **Ask if user wants sub-categories** for large folders (50+ items). If yes, propose L2.
+3. **Support iterative deepening.** User may say "技术学习再细分一下" → propose L3 within that folder.
+4. **Respect user overrides.** If user says "我想把 XX 放到 YY 下面", adjust the plan accordingly.
+5. **No fixed depth limit.** Support 2-level, 3-level, or even 4-level nesting if the user wants it.
+6. **Confirm at each level** before creating folders and moving items.
+
+Example interaction flow:
+```
+Agent: "Proposed top-level structure: [L1 plan]. Shall I proceed, or adjust?"
+User:  "技术学习太多了，再分一下"
+Agent: "Got it. Proposed sub-categories for 技术学习: [L2 plan]. OK?"
+User:  "Java基础 里面还能再分吗"
+Agent: "Sure. Proposed sub-categories for Java基础: [L3 plan]. OK?"
+User:  "可以，开始整理"
+Agent: → Execute all confirmed levels
+```
 
 ### Phase 3: Execute Reorganization
 
