@@ -127,6 +127,7 @@ This is a conversational skill. The user drives the final structure.
 
 1. **Show the full existing structure** when reading bookmarks — always include all levels (L1, L2, L3+), not just top-level. The user needs to see the complete picture to make decisions.
 2. **Propose changes based on what needs fixing**, not a full rewrite. If the structure is already 80% good, only suggest the 20% that needs work.
+3. **Share your own observations and suggestions.** Don't just show the data — tell the user what you think could be improved and why. For example: "This folder has 200+ items, splitting by topic would make it easier to find things", or "These 3 folders overlap in content, merging them would reduce clutter". Be opinionated but open to the user's preferences.
 3. **Ask if user wants sub-categories** for large folders (50+ items). If yes, propose sub-folders.
 4. **Support iterative deepening.** User may request further breakdown → propose deeper nesting within that folder.
 5. **Respect user overrides.** If user wants to move items to a different parent, adjust the plan.
