@@ -240,20 +240,29 @@ chrome.bookmarks.getTree(function(tree) {
 
 Present duplicates to user and ask which to remove before deleting.
 
-### Backup Current Structure
+### Backup & Restore
 
-Before major changes, save the current tree as JSON to a local file:
+**Always create a backup before any reorganization.** Run the backup script:
 
 ```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.getTree(function(tree) {
-  document.title = JSON.stringify(tree).substring(0, 30000);
-});
-\"ok\";
-"'
+bash {baseDir}/scripts/backup_restore.sh backup
 ```
 
-For large trees, save to a temp file in chunks. The backup serves as documentation; actual rollback uses `chrome.bookmarks.move()` to restore items to their original parent IDs.
+This saves every bookmark's ID, title, URL, and parentId to `~/.bookmark-organizer/backups/bookmarks_YYYYMMDD_HHMMSS.json`. The agent should run this automatically at the start of Phase 3 (before any moves).
+
+**List available backups:**
+```bash
+bash {baseDir}/scripts/backup_restore.sh list
+```
+
+**Restore from a backup** (moves all bookmarks back to their original parent folders):
+```bash
+bash {baseDir}/scripts/backup_restore.sh restore <backup_file>
+```
+
+The restore works by calling `chrome.bookmarks.move()` for each item to return it to its original parent — same sync-safe API, no file hacking.
+
+If the user says they're unhappy with the result or wants to undo, immediately offer to restore from the most recent backup.
 
 ## Error Handling
 

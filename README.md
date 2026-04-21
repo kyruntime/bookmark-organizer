@@ -11,7 +11,7 @@
 | **创建与移动** | ✅ | 通过 Chrome Bookmarks API 创建文件夹、移动书签 |
 | **去重检测** | 🚧 | 检测并合并重复的 URL |
 | **死链检查** | 🚧 | 识别已失效的链接（404） |
-| **备份与回滚** | ✅ | 操作前自动创建快照，可一键恢复 |
+| **备份与回滚** | ✅ | 操作前自动快照，不满意可一键恢复到之前的状态 |
 | **多浏览器** | 🔜 | 目前支持 Chrome（macOS）；Safari、Firefox、Edge 计划中 |
 
 ## 工作原理
@@ -111,14 +111,15 @@ Agent 会根据 Skill 描述中的触发词自动加载此技能。
 
 ```
 bookmark-organizer/
-├── SKILL.md                 # 技能主文件（Cursor/Claude Code/OpenClaw 通用）
-├── README.md                # 本文件
-├── install.sh               # 一键安装脚本
-├── examples.md              # 使用示例
+├── SKILL.md                   # 技能主文件（Cursor/Claude Code/OpenClaw 通用）
+├── README.md                  # 本文件
+├── install.sh                 # 一键安装脚本
+├── examples.md                # 使用示例
 ├── scripts/
-│   ├── chrome_bookmarks.sh  # Chrome Bookmarks API 的 Shell 封装
-│   ├── analyze.py           # 书签分析与分类建议
-│   └── validate.py          # 整理后的结构验证
+│   ├── chrome_bookmarks.sh    # Chrome Bookmarks API 的 Shell 封装
+│   ├── backup_restore.sh      # 备份与一键恢复
+│   ├── analyze.py             # 书签分析与分类建议
+│   └── validate.py            # 整理后的结构验证
 └── .gitignore
 ```
 
