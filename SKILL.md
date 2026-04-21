@@ -31,50 +31,20 @@ The skill will automatically open a new Chrome tab for `chrome://bookmarks/` (th
 
 ### Phase 1: Read Bookmark Tree
 
-```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.getTree(function(tree) {
-  var bar = tree[0].children[0];
-  var lines = [];
-  function walk(node, depth) {
-    var prefix = \"\";
-    for(var i=0;i<depth;i++) prefix += \"  \";
-    if (node.url) {
-      lines.push(prefix + \"[\" + node.id + \"] \" + node.title + \" | \" + node.url);
-    } else {
-      var cnt = 0;
-      function count(n) { if(n.url) cnt++; else if(n.children) n.children.forEach(count); }
-      count(node);
-      lines.push(prefix + \"[\" + node.id + \"] 📁 \" + node.title + \" (\" + cnt + \")\");
-      if (node.children) node.children.forEach(function(c) { walk(c, depth+1); });
-    }
-  }
-  bar.children.forEach(function(c) { walk(c, 0); });
-  document.title = JSON.stringify(lines);
-});
-\"reading...\";
-"'
-```
-
-Wait 2 seconds, then read result:
-```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "document.title"'
-```
-
-**Important**: `document.title` has a practical limit of ~30KB. For large bookmark collections (500+ items), read in chunks by folder ID:
+**Always use the Python API** — it handles tab management, async polling, and chunked reads automatically:
 
 ```bash
-# Read children of a specific folder
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.getChildren(\"FOLDER_ID\", function(children) {
-  var lines = children.map(function(c) {
-    return c.url ? c.id+\"|\"+c.title+\"|\"+c.url : c.id+\"|📁\"+c.title;
-  });
-  document.title = JSON.stringify(lines);
-});
-\"ok\";
-"'
+# Print the full bookmark tree
+python3 {baseDir}/scripts/chrome_api.py tree
+
+# Or get a summary with folder counts
+python3 {baseDir}/scripts/chrome_api.py summary
+
+# List children of a specific folder
+python3 {baseDir}/scripts/chrome_api.py children FOLDER_ID
 ```
+
+The Python API automatically opens a new Chrome tab for `chrome://bookmarks/` and closes it when done. The user's existing tabs are never affected.
 
 ### Phase 2: Analyze and Plan
 
@@ -167,79 +137,49 @@ python3 {baseDir}/scripts/backup_restore.py backup
 ```
 After the backup completes, **tell the user the backup file path** so they know where to find it if they need to restore later.
 
-Then create folders and move bookmarks. Execute in batches to avoid overwhelming Chrome.
+Then create folders and move bookmarks using the Python API:
 
 **Create a folder:**
 ```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.create({parentId: \"PARENT_ID\", title: \"FOLDER_NAME\"}, function(f) {
-  document.title = \"created:\" + f.id;
-});
-\"ok\";
-"'
+python3 {baseDir}/scripts/chrome_api.py create PARENT_ID "Folder Name"
 ```
 
-**Move items (batch of up to 20):**
+**Move a bookmark to a folder:**
 ```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-var ids = [\"ID1\",\"ID2\",\"ID3\"];
-var target = \"TARGET_FOLDER_ID\";
-var done = 0;
-ids.forEach(function(id) {
-  chrome.bookmarks.move(id, {parentId: target}, function() {
-    done++;
-    if (done === ids.length) document.title = \"moved:\" + done;
-  });
-});
-\"moving...\";
-"'
+python3 {baseDir}/scripts/chrome_api.py move BOOKMARK_ID TARGET_FOLDER_ID
 ```
 
-**Delete empty folder:**
+**Move multiple bookmarks at once:**
 ```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.removeTree(\"FOLDER_ID\", function() {
-  document.title = \"deleted\";
-});
-\"ok\";
-"'
+python3 {baseDir}/scripts/chrome_api.py move-batch TARGET_FOLDER_ID ID1 ID2 ID3
 ```
 
-**Batch rules:**
-- Move at most 20 items per AppleScript call
-- Wait 1-2 seconds between batches
-- Always verify via `document.title` after each operation
-- If an operation fails, log the error and continue with the next batch
+**Delete an empty folder:**
+```bash
+python3 {baseDir}/scripts/chrome_api.py remove FOLDER_ID
+```
+
+For complex sequences (many creates + moves), use Python directly for better control:
+```python
+import sys; sys.path.insert(0, "{baseDir}/scripts")
+from chrome_api import ChromeBookmarks
+cb = ChromeBookmarks()
+folder_id = cb.create_folder("1", "New Category")
+cb.move_batch(["42", "43", "44"], folder_id)
+cb.cleanup()
+```
 
 ### Phase 4: Verify
 
-After all operations, read the final tree structure and present it to the user:
+After all operations, read the final tree and present it to the user:
 
 ```bash
-osascript -e 'tell application "Google Chrome" to execute front window'\''s active tab javascript "
-chrome.bookmarks.getTree(function(tree) {
-  var bar = tree[0].children[0];
-  var lines = [];
-  bar.children.forEach(function(c) {
-    var cnt = 0;
-    function count(n) { if(n.url) cnt++; else if(n.children) n.children.forEach(count); }
-    count(c);
-    lines.push(c.title + \": \" + cnt);
-    if (c.children) {
-      c.children.forEach(function(sub) {
-        if (!sub.url) {
-          var scnt = 0;
-          function scount(n) { if(n.url) scnt++; else if(n.children) n.children.forEach(scount); }
-          scount(sub);
-          lines.push(\"  > \" + sub.title + \": \" + scnt);
-        }
-      });
-    }
-  });
-  document.title = lines.join(\"|\");
-});
-\"ok\";
-"'
+python3 {baseDir}/scripts/chrome_api.py summary
+```
+
+Or for a full tree view:
+```bash
+python3 {baseDir}/scripts/chrome_api.py tree
 ```
 
 ## Advanced Operations
@@ -255,11 +195,7 @@ python3 {baseDir}/scripts/chrome_api.py dupes
 This prints all duplicate groups with their IDs and locations. Present the results to the user in a clear table format, then ask which copies to remove. For each removal, use:
 
 ```bash
-python3 -c "
-from scripts.chrome_api import ChromeBookmarks
-cb = ChromeBookmarks()
-cb.remove('BOOKMARK_ID')
-"
+python3 {baseDir}/scripts/chrome_api.py remove BOOKMARK_ID
 ```
 
 **Dedup rules:**
@@ -306,8 +242,6 @@ If the user says they're unhappy with the result or wants to undo, immediately o
 - **Never modify the Bookmarks JSON file directly** — Chrome sync will revert changes
 - All operations go through `chrome.bookmarks.*` API → sync-safe
 - Bookmark IDs are session-stable but may change across Chrome restarts
-- The "Bookmarks Bar" is always `tree[0].children[0]`, "Other Bookmarks" is `tree[0].children[1]`
 - **Check both Bookmark Bar AND "Other Bookmarks"** — users may have items in both locations
-- When folder names contain single quotes or backslashes, escape them before injecting into AppleScript JS calls (replace `'` with `\\'`)
-- Keep JavaScript in AppleScript calls simple — complex scripts may hit shell escaping issues
-- **Prefer the Python API** (`scripts/chrome_api.py`) over raw AppleScript for complex operations — it handles escaping, async polling, and chunked reads automatically
+- **Always use `scripts/chrome_api.py`** — do NOT write raw AppleScript/osascript commands. The Python API handles tab management, escaping, async polling, and chunked reads automatically
+- Always call `cb.cleanup()` after using `ChromeBookmarks` directly in Python to close the helper tab
