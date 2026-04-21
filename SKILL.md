@@ -131,8 +131,9 @@ This is a conversational skill. The user drives the final structure.
 4. **Support iterative deepening.** User may request further breakdown → propose deeper nesting within that folder.
 5. **Respect user overrides.** If user wants to move items to a different parent, adjust the plan.
 6. **No fixed depth limit.** Support 2-level, 3-level, or even 4-level nesting if the user wants it.
-7. **Confirm before executing** any changes.
-8. **Match the user's language** — respond and name folders in whatever language the user is using. Do not assume any specific language.
+7. **Show a before/after preview** before executing. Present the proposed final structure (what it will look like after the changes) alongside what it looks like now, so the user can visualize the result.
+8. **Confirm before executing** any changes.
+9. **Match the user's language** — respond and name folders in whatever language the user is using. Do not assume any specific language.
 
 Example interaction for **already organized** bookmarks:
 ```
