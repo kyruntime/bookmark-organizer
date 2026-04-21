@@ -123,6 +123,7 @@ def main():
     print("=" * 50)
     print(f"Results: {passed}/{total} passed, {total - passed} failed")
 
+    cb.cleanup()
     sys.exit(0 if passed == total else 1)
 
 

@@ -50,6 +50,7 @@ def cmd_backup(output_dir: str | None = None):
     print(f"Backup saved: {backup_file} ({len(items)} items)")
 
     _cleanup_old_backups(backup_dir, keep=10)
+    cb.cleanup()
     return str(backup_file)
 
 
@@ -108,6 +109,8 @@ def cmd_restore(backup_file: str, auto_confirm: bool = False):
     tree = cb.get_tree()
     total_verified = sum(1 for root in tree for _ in root.walk())
     print(f"Verified: {total_verified} items in tree")
+
+    cb.cleanup()
 
 
 def cmd_list(backup_dir: str | None = None):

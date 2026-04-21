@@ -59,6 +59,7 @@ class ChromeBookmarks:
     def __init__(self, wait: float = WAIT_SECONDS, max_poll: float = 15):
         self.wait = wait
         self.max_poll = max_poll
+        self._opened_tab = False
 
     def _exec_js(self, js_code: str) -> str:
         """Execute JavaScript in Chrome and return the immediate eval result."""
@@ -110,7 +111,7 @@ class ChromeBookmarks:
             raise ChromeError("Google Chrome is not running")
 
     def ensure_bookmarks_page(self):
-        """Navigate active tab to chrome://bookmarks if not already there.
+        """Open chrome://bookmarks in a new background tab if not already there.
         The chrome.bookmarks API is only available on chrome://bookmarks.
         Does NOT activate/focus Chrome — operates silently in the background."""
         try:
@@ -124,14 +125,32 @@ class ChromeBookmarks:
             subprocess.run(
                 [
                     "osascript", "-e",
-                    'tell application "Google Chrome" to set URL of active tab '
-                    'of front window to "chrome://bookmarks/"',
+                    'tell application "Google Chrome" to tell front window to '
+                    'make new tab with properties {URL:"chrome://bookmarks/"}',
                 ],
                 capture_output=True, text=True, check=True, timeout=10,
             )
+            self._opened_tab = True
             time.sleep(2)
         except subprocess.CalledProcessError as e:
-            raise ChromeError(f"Failed to navigate to bookmarks: {e.stderr}") from e
+            raise ChromeError(f"Failed to open bookmarks tab: {e.stderr}") from e
+
+    def cleanup(self):
+        """Close the bookmarks tab if we opened one."""
+        if not self._opened_tab:
+            return
+        try:
+            subprocess.run(
+                [
+                    "osascript", "-e",
+                    'tell application "Google Chrome" to tell front window to '
+                    'close active tab',
+                ],
+                capture_output=True, text=True, check=True, timeout=10,
+            )
+            self._opened_tab = False
+        except subprocess.CalledProcessError:
+            pass
 
     # ── Read Operations ──
 
@@ -385,60 +404,63 @@ def main():
     cb = ChromeBookmarks()
     cmd = sys.argv[1]
 
-    if cmd == "tree":
-        tree = cb.get_tree()
-        def print_tree(node, indent=0):
-            prefix = "  " * indent
-            if node.url:
-                print(f"{prefix}[{node.id}] {node.title} | {node.url}")
+    try:
+        if cmd == "tree":
+            tree = cb.get_tree()
+            def print_tree(node, indent=0):
+                prefix = "  " * indent
+                if node.url:
+                    print(f"{prefix}[{node.id}] {node.title} | {node.url}")
+                else:
+                    print(f"{prefix}[{node.id}] \U0001f4c1 {node.title} ({node.count_urls()})")
+                for child in node.children:
+                    print_tree(child, indent + 1)
+            for root in tree:
+                print_tree(root)
+
+        elif cmd == "children":
+            children = cb.get_children(sys.argv[2])
+            print(json.dumps(children, ensure_ascii=False, indent=2))
+
+        elif cmd == "create":
+            new_id = cb.create_folder(sys.argv[2], sys.argv[3])
+            print(f"Created folder: {new_id}")
+
+        elif cmd == "move":
+            ok = cb.move(sys.argv[2], sys.argv[3])
+            print(f"Move {'succeeded' if ok else 'failed'}")
+
+        elif cmd == "move-batch":
+            parent = sys.argv[2]
+            ids = sys.argv[3:]
+            count = cb.move_batch(ids, parent)
+            print(f"Moved {count} items")
+
+        elif cmd == "remove":
+            ok = cb.remove(sys.argv[2])
+            print(f"Remove {'succeeded' if ok else 'failed'}")
+
+        elif cmd == "dupes":
+            dupes = cb.find_duplicates()
+            if not dupes:
+                print("No duplicates found.")
             else:
-                print(f"{prefix}[{node.id}] \U0001f4c1 {node.title} ({node.count_urls()})")
-            for child in node.children:
-                print_tree(child, indent + 1)
-        for root in tree:
-            print_tree(root)
+                print(f"Found {len(dupes)} duplicate URLs:\n")
+                for i, d in enumerate(dupes, 1):
+                    print(f"{i}. {d['url']} (appears {d['count']} times)")
+                    for inst in d["instances"]:
+                        print(f"   - [{inst['id']}] {inst['title']}")
+                    print()
 
-    elif cmd == "children":
-        children = cb.get_children(sys.argv[2])
-        print(json.dumps(children, ensure_ascii=False, indent=2))
+        elif cmd == "summary":
+            s = cb.get_summary()
+            print(json.dumps(s, ensure_ascii=False, indent=2))
 
-    elif cmd == "create":
-        new_id = cb.create_folder(sys.argv[2], sys.argv[3])
-        print(f"Created folder: {new_id}")
-
-    elif cmd == "move":
-        ok = cb.move(sys.argv[2], sys.argv[3])
-        print(f"Move {'succeeded' if ok else 'failed'}")
-
-    elif cmd == "move-batch":
-        parent = sys.argv[2]
-        ids = sys.argv[3:]
-        count = cb.move_batch(ids, parent)
-        print(f"Moved {count} items")
-
-    elif cmd == "remove":
-        ok = cb.remove(sys.argv[2])
-        print(f"Remove {'succeeded' if ok else 'failed'}")
-
-    elif cmd == "dupes":
-        dupes = cb.find_duplicates()
-        if not dupes:
-            print("No duplicates found.")
         else:
-            print(f"Found {len(dupes)} duplicate URLs:\n")
-            for i, d in enumerate(dupes, 1):
-                print(f"{i}. {d['url']} (appears {d['count']} times)")
-                for inst in d["instances"]:
-                    print(f"   - [{inst['id']}] {inst['title']}")
-                print()
-
-    elif cmd == "summary":
-        s = cb.get_summary()
-        print(json.dumps(s, ensure_ascii=False, indent=2))
-
-    else:
-        print(f"Unknown command: {cmd}")
-        sys.exit(1)
+            print(f"Unknown command: {cmd}")
+            sys.exit(1)
+    finally:
+        cb.cleanup()
 
 
 if __name__ == "__main__":
