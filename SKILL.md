@@ -257,8 +257,9 @@ bash {baseDir}/scripts/backup_restore.sh list
 
 **Restore from a backup** (moves all bookmarks back to their original parent folders):
 ```bash
-bash {baseDir}/scripts/backup_restore.sh restore <backup_file>
+bash {baseDir}/scripts/backup_restore.sh restore <backup_file> --yes
 ```
+Use `--yes` to skip the interactive confirmation prompt (required when called by an agent).
 
 The restore works by calling `chrome.bookmarks.move()` for each item to return it to its original parent — same sync-safe API, no file hacking.
 
