@@ -102,9 +102,8 @@ bookmark-organizer/
 ├── install.sh                 # 一键安装脚本
 ├── examples.md                # 使用示例
 ├── scripts/
-│   ├── chrome_api.py          # Python 核心库（推荐）
-│   ├── chrome_bookmarks.sh    # Shell 封装（轻量场景）
-│   ├── backup_restore.sh      # 备份与一键恢复
+│   ├── chrome_api.py          # Python 核心库（所有操作的统一入口）
+│   ├── backup_restore.py      # 备份与一键恢复
 │   ├── analyze.py             # 书签分析与分类建议
 │   ├── validate.py            # 整理后的结构验证
 │   └── smoke_test.py          # 冒烟测试
@@ -117,16 +116,16 @@ bookmark-organizer/
 
 ```bash
 # 创建备份（保存到 ~/.bookmark-organizer/backups/）
-bash scripts/backup_restore.sh backup
+python3 scripts/backup_restore.py backup
 
 # 查看所有备份
-bash scripts/backup_restore.sh list
+python3 scripts/backup_restore.py list
 
 # 恢复到某个备份（交互式确认）
-bash scripts/backup_restore.sh restore ~/.bookmark-organizer/backups/bookmarks_20260421_143000.json
+python3 scripts/backup_restore.py restore ~/.bookmark-organizer/backups/bookmarks_20260421_143000.json
 
 # 跳过确认直接恢复（Agent 调用时使用）
-bash scripts/backup_restore.sh restore <backup_file> --yes
+python3 scripts/backup_restore.py restore <backup_file> --yes
 ```
 
 备份文件记录了每个书签的 ID、标题、URL 和所属文件夹，恢复时通过 `chrome.bookmarks.move()` 把每个书签移回原位。

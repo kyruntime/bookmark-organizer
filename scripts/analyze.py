@@ -2,49 +2,44 @@
 """Analyze Chrome bookmarks and suggest categories.
 
 Usage:
-    python analyze.py <bookmarks_json_file>
-    python analyze.py --from-chrome
+    python analyze.py              # Read from Chrome via API (default)
+    python analyze.py --json FILE  # Read from a local bookmarks JSON file
 
-When --from-chrome is used, reads the macOS default Chrome Bookmarks file.
 Output: JSON report with stats, domain clusters, and suggested categories.
 """
 
 import json
 import sys
-import os
 from collections import Counter, defaultdict
 from urllib.parse import urlparse
-from pathlib import Path
 
-CHROME_BOOKMARKS_PATH = os.path.expanduser(
-    "~/Library/Application Support/Google/Chrome/Default/Bookmarks"
-)
+from chrome_api import ChromeBookmarks, BookmarkNode
 
 DOMAIN_CATEGORIES = {
-    "github.com": "开发工具",
-    "gitlab.com": "开发工具",
-    "stackoverflow.com": "技术学习",
-    "developer.mozilla.org": "技术学习",
-    "docs.oracle.com": "技术学习",
-    "spring.io": "技术学习",
-    "baeldung.com": "技术学习",
-    "juejin.cn": "技术学习",
-    "csdn.net": "技术学习",
-    "cnblogs.com": "技术学习",
-    "zhihu.com": "日常工具",
-    "bilibili.com": "影音娱乐",
-    "youtube.com": "影音娱乐",
-    "notion.so": "日常工具",
-    "figma.com": "设计",
+    "github.com": "Dev Tools",
+    "gitlab.com": "Dev Tools",
+    "stackoverflow.com": "Tech Learning",
+    "developer.mozilla.org": "Tech Learning",
+    "docs.oracle.com": "Tech Learning",
+    "spring.io": "Tech Learning",
+    "baeldung.com": "Tech Learning",
+    "juejin.cn": "Tech Learning",
+    "csdn.net": "Tech Learning",
+    "cnblogs.com": "Tech Learning",
+    "zhihu.com": "Daily Tools",
+    "bilibili.com": "Media",
+    "youtube.com": "Media",
+    "notion.so": "Daily Tools",
+    "figma.com": "Design",
     "chat.openai.com": "AI",
     "claude.ai": "AI",
     "cursor.com": "AI",
-    "docs.google.com": "日常工具",
-    "drive.google.com": "日常工具",
-    "mail.google.com": "日常工具",
-    "taobao.com": "生活",
-    "jd.com": "生活",
-    "amazon.com": "生活",
+    "docs.google.com": "Daily Tools",
+    "drive.google.com": "Daily Tools",
+    "mail.google.com": "Daily Tools",
+    "taobao.com": "Life",
+    "jd.com": "Life",
+    "amazon.com": "Life",
 }
 
 
@@ -62,49 +57,32 @@ def extract_domain(url: str) -> str:
         return ""
 
 
-def walk_bookmarks(node, path="", depth=0):
-    """Yield (id, title, url, path, depth) for every bookmark."""
-    current_path = f"{path}/{node.get('name', '')}" if path else node.get("name", "")
+def analyze_tree(roots: list[BookmarkNode]) -> dict:
+    all_bookmarks: list[dict] = []
+    all_folders: list[dict] = []
 
-    if node.get("type") == "url":
-        yield {
-            "id": node.get("id"),
-            "title": node.get("name", ""),
-            "url": node.get("url", ""),
-            "path": path,
-            "depth": depth,
-        }
-
-    for child in node.get("children", []):
-        yield from walk_bookmarks(child, current_path, depth + 1)
-
-
-def walk_folders(node, depth=0):
-    """Yield (id, name, depth, child_count) for every folder."""
-    if node.get("type") == "folder":
-        bookmark_count = sum(
-            1 for _ in walk_bookmarks(node)
-        )
-        yield {
-            "id": node.get("id"),
-            "name": node.get("name", ""),
-            "depth": depth,
-            "bookmark_count": bookmark_count,
-        }
-        for child in node.get("children", []):
-            yield from walk_folders(child, depth + 1)
-
-
-def analyze(bookmarks_data: dict) -> dict:
-    roots = bookmarks_data.get("roots", {})
-    bar = roots.get("bookmark_bar", {})
-    other = roots.get("other", {})
-
-    all_bookmarks = list(walk_bookmarks(bar)) + list(walk_bookmarks(other))
-    all_folders = list(walk_folders(bar)) + list(walk_folders(other))
+    for root in roots:
+        for node in root.walk():
+            if node.url:
+                depth = _node_depth(node, roots)
+                all_bookmarks.append({
+                    "id": node.id,
+                    "title": node.title,
+                    "url": node.url,
+                    "parent_id": node.parent_id,
+                    "depth": depth,
+                })
+            elif node.is_folder:
+                depth = _node_depth(node, roots)
+                all_folders.append({
+                    "id": node.id,
+                    "name": node.title,
+                    "depth": depth,
+                    "bookmark_count": node.count_urls(),
+                })
 
     domains = Counter()
-    domain_to_bookmarks = defaultdict(list)
+    domain_to_bookmarks: dict[str, list[dict]] = defaultdict(list)
     uncategorized = []
 
     for bm in all_bookmarks:
@@ -114,7 +92,7 @@ def analyze(bookmarks_data: dict) -> dict:
         if bm["depth"] <= 1:
             uncategorized.append(bm)
 
-    suggested = defaultdict(list)
+    suggested: dict[str, list[dict]] = defaultdict(list)
     for domain, bms in domain_to_bookmarks.items():
         category = None
         for known_domain, cat in DOMAIN_CATEGORIES.items():
@@ -155,23 +133,63 @@ def analyze(bookmarks_data: dict) -> dict:
     }
 
 
+def _node_depth(node: BookmarkNode, roots: list[BookmarkNode]) -> int:
+    """Calculate depth by counting ancestor levels. Simple BFS approach."""
+    id_to_parent: dict[str, str | None] = {}
+    for root in roots:
+        for n in root.walk():
+            id_to_parent[n.id] = n.parent_id
+
+    depth = 0
+    current = node.parent_id
+    while current and current in id_to_parent:
+        depth += 1
+        current = id_to_parent[current]
+    return depth
+
+
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <bookmarks.json | --from-chrome>")
-        sys.exit(1)
+    use_file = None
+    if len(sys.argv) >= 3 and sys.argv[1] == "--json":
+        use_file = sys.argv[2]
 
-    source = sys.argv[1]
-    if source == "--from-chrome":
-        path = Path(CHROME_BOOKMARKS_PATH)
-        if not path.exists():
-            print(f"Chrome bookmarks not found at {CHROME_BOOKMARKS_PATH}")
-            sys.exit(1)
-        data = json.loads(path.read_text(encoding="utf-8"))
+    if use_file:
+        from pathlib import Path
+        data = json.loads(Path(use_file).read_text(encoding="utf-8"))
+        roots_data = data.get("roots", {})
+        bar = roots_data.get("bookmark_bar", {})
+        other = roots_data.get("other", {})
+        all_bookmarks_raw = []
+
+        def walk_raw(node, depth=0):
+            if node.get("type") == "url":
+                all_bookmarks_raw.append({
+                    "id": node.get("id"),
+                    "title": node.get("name", ""),
+                    "url": node.get("url", ""),
+                    "depth": depth,
+                })
+            for child in node.get("children", []):
+                walk_raw(child, depth + 1)
+
+        walk_raw(bar)
+        walk_raw(other)
+
+        domains = Counter()
+        for bm in all_bookmarks_raw:
+            domain = extract_domain(bm["url"])
+            domains[domain] += 1
+
+        report = {
+            "stats": {"total_bookmarks": len(all_bookmarks_raw)},
+            "top_domains": domains.most_common(20),
+        }
+        print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
-        data = json.loads(Path(source).read_text(encoding="utf-8"))
-
-    report = analyze(data)
-    print(json.dumps(report, ensure_ascii=False, indent=2))
+        cb = ChromeBookmarks()
+        tree = cb.get_tree()
+        report = analyze_tree(tree)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

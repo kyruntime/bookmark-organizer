@@ -163,7 +163,7 @@ Agent: → Execute
 
 **Before making any changes, create a backup:**
 ```bash
-bash {baseDir}/scripts/backup_restore.sh backup
+python3 {baseDir}/scripts/backup_restore.py backup
 ```
 
 Then create folders and move bookmarks. Execute in batches to avoid overwhelming Chrome.
@@ -271,19 +271,19 @@ cb.remove('BOOKMARK_ID')
 **Always create a backup before any reorganization.** Run the backup script:
 
 ```bash
-bash {baseDir}/scripts/backup_restore.sh backup
+python3 {baseDir}/scripts/backup_restore.py backup
 ```
 
 This saves every bookmark's ID, title, URL, and parentId to `~/.bookmark-organizer/backups/bookmarks_YYYYMMDD_HHMMSS.json`. The agent should run this automatically at the start of Phase 3 (before any moves).
 
 **List available backups:**
 ```bash
-bash {baseDir}/scripts/backup_restore.sh list
+python3 {baseDir}/scripts/backup_restore.py list
 ```
 
 **Restore from a backup** (moves all bookmarks back to their original parent folders):
 ```bash
-bash {baseDir}/scripts/backup_restore.sh restore <backup_file> --yes
+python3 {baseDir}/scripts/backup_restore.py restore <backup_file> --yes
 ```
 Use `--yes` to skip the interactive confirmation prompt (required when called by an agent).
 
