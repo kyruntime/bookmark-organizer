@@ -14,14 +14,17 @@ Organize Chrome bookmarks through the browser's native API — no file hacking, 
 
 ## Prerequisites Check
 
-Before starting, verify:
+Before starting, run through these checks:
 
-1. **macOS only** — this skill uses AppleScript
-2. **Chrome running** with at least one tab open
-3. **"Allow JavaScript from Apple Events" enabled** in Chrome:
+1. **Ask which browser** if the user didn't specify. Currently only **Google Chrome on macOS** is supported.
+   - If the user mentions Safari, Firefox, or Edge, explain that support is coming soon and this skill currently only works with Chrome.
+2. **macOS only** — this skill uses AppleScript to communicate with Chrome.
+3. **Chrome must be running** with at least one tab open.
+4. **"Allow JavaScript from Apple Events" must be enabled** in Chrome:
    - Menu → View → Developer → Allow JavaScript from Apple Events
+   - If the user gets an authorization error, guide them to this setting.
 
-If not enabled, guide the user to enable it before proceeding.
+The skill will automatically navigate Chrome to `chrome://bookmarks/` (the API only works on `chrome://` pages).
 
 ## Core Workflow
 
