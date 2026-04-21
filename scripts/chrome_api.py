@@ -61,6 +61,11 @@ class ChromeBookmarks:
         self.max_poll = max_poll
         self._opened_tab = False
 
+    def _ensure_ready(self):
+        """Ensure Chrome is running and active tab is chrome://bookmarks."""
+        self.check_chrome_running()
+        self.ensure_bookmarks_page()
+
     def _exec_js(self, js_code: str) -> str:
         """Execute JavaScript in Chrome and return the immediate eval result."""
         escaped = js_code.replace("\\", "\\\\").replace('"', '\\"')
@@ -111,9 +116,8 @@ class ChromeBookmarks:
             raise ChromeError("Google Chrome is not running")
 
     def ensure_bookmarks_page(self):
-        """Open chrome://bookmarks in a new background tab if not already there.
-        The chrome.bookmarks API is only available on chrome://bookmarks.
-        Does NOT activate/focus Chrome — operates silently in the background."""
+        """Ensure active tab is chrome://bookmarks. Finds an existing bookmarks
+        tab or creates a new one. Does NOT activate/focus Chrome."""
         try:
             url = self._exec_js("window.location.href")
             if url.startswith("chrome://bookmarks"):
@@ -121,16 +125,31 @@ class ChromeBookmarks:
         except ChromeError:
             pass
 
+        script = '''\
+tell application "Google Chrome"
+    set w to front window
+    set foundIdx to 0
+    repeat with i from 1 to count of tabs of w
+        if URL of tab i of w starts with "chrome://bookmarks" then
+            set foundIdx to i
+            exit repeat
+        end if
+    end repeat
+    if foundIdx > 0 then
+        set active tab index of w to foundIdx
+        return "found"
+    else
+        tell w to make new tab with properties {URL:"chrome://bookmarks/"}
+        return "created"
+    end if
+end tell'''
         try:
-            subprocess.run(
-                [
-                    "osascript", "-e",
-                    'tell application "Google Chrome" to tell front window to '
-                    'make new tab with properties {URL:"chrome://bookmarks/"}',
-                ],
+            result = subprocess.run(
+                ["osascript", "-e", script],
                 capture_output=True, text=True, check=True, timeout=10,
             )
-            self._opened_tab = True
+            if result.stdout.strip() == "created":
+                self._opened_tab = True
             time.sleep(2)
         except subprocess.CalledProcessError as e:
             raise ChromeError(f"Failed to open bookmarks tab: {e.stderr}") from e
@@ -148,16 +167,15 @@ class ChromeBookmarks:
                 ],
                 capture_output=True, text=True, check=True, timeout=10,
             )
-            self._opened_tab = False
         except subprocess.CalledProcessError:
             pass
+        self._opened_tab = False
 
     # ── Read Operations ──
 
     def get_tree(self) -> list[BookmarkNode]:
         """Get the full bookmark tree as a flat list of top-level nodes."""
-        self.check_chrome_running()
-        self.ensure_bookmarks_page()
+        self._ensure_ready()
 
         title = self._run_js_and_poll("""
 chrome.bookmarks.getTree(function(tree) {
@@ -230,7 +248,7 @@ document.title = '{marker}' + JSON.stringify(chunk);
 
     def get_children(self, folder_id: str) -> list[dict]:
         """Get immediate children of a folder."""
-        self.check_chrome_running()
+        self._ensure_ready()
         marker = f"children-{folder_id}:"
         title = self._run_js_and_poll(f"""
 chrome.bookmarks.getChildren('{folder_id}', function(children) {{
@@ -248,7 +266,7 @@ chrome.bookmarks.getChildren('{folder_id}', function(children) {{
 
     def create_folder(self, parent_id: str, title: str) -> str:
         """Create a folder and return its ID."""
-        self.check_chrome_running()
+        self._ensure_ready()
         safe_title = title.replace("'", "\\'")
         result = self._run_js_and_poll(f"""
 chrome.bookmarks.create({{parentId: '{parent_id}', title: '{safe_title}'}}, function(f) {{
@@ -260,7 +278,7 @@ chrome.bookmarks.create({{parentId: '{parent_id}', title: '{safe_title}'}}, func
 
     def move(self, bookmark_id: str, parent_id: str) -> bool:
         """Move a bookmark to a new parent folder."""
-        self.check_chrome_running()
+        self._ensure_ready()
         result = self._run_js_and_poll(f"""
 chrome.bookmarks.move('{bookmark_id}', {{parentId: '{parent_id}'}}, function() {{
   document.title = 'moved:{bookmark_id}';
@@ -271,7 +289,7 @@ chrome.bookmarks.move('{bookmark_id}', {{parentId: '{parent_id}'}}, function() {
 
     def move_batch(self, bookmark_ids: list[str], parent_id: str) -> int:
         """Move multiple bookmarks to a parent folder. Returns count moved."""
-        self.check_chrome_running()
+        self._ensure_ready()
         ids_js = ",".join(f"'{bid}'" for bid in bookmark_ids)
         result = self._run_js_and_poll(f"""
 var ids = [{ids_js}];
@@ -289,7 +307,7 @@ ids.forEach(function(id) {{
 
     def remove(self, bookmark_id: str) -> bool:
         """Remove a bookmark or empty folder."""
-        self.check_chrome_running()
+        self._ensure_ready()
         result = self._run_js_and_poll(f"""
 chrome.bookmarks.remove('{bookmark_id}', function() {{
   document.title = 'removed:{bookmark_id}';
@@ -300,7 +318,7 @@ chrome.bookmarks.remove('{bookmark_id}', function() {{
 
     def remove_tree(self, folder_id: str) -> bool:
         """Remove a folder and all its contents."""
-        self.check_chrome_running()
+        self._ensure_ready()
         result = self._run_js_and_poll(f"""
 chrome.bookmarks.removeTree('{folder_id}', function() {{
   document.title = 'removed:{folder_id}';
