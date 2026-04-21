@@ -165,6 +165,7 @@ Agent: → Execute
 ```bash
 python3 {baseDir}/scripts/backup_restore.py backup
 ```
+After the backup completes, **tell the user the backup file path** so they know where to find it if they need to restore later.
 
 Then create folders and move bookmarks. Execute in batches to avoid overwhelming Chrome.
 

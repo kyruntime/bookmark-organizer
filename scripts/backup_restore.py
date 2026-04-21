@@ -48,7 +48,19 @@ def cmd_backup(output_dir: str | None = None):
 
     backup_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Backup saved: {backup_file} ({len(items)} items)")
+
+    _cleanup_old_backups(backup_dir, keep=10)
     return str(backup_file)
+
+
+def _cleanup_old_backups(backup_dir: Path, keep: int = 10):
+    """Keep only the most recent N backups, delete older ones."""
+    backups = sorted(backup_dir.glob("bookmarks_*.json"), key=lambda f: f.stat().st_mtime)
+    if len(backups) <= keep:
+        return
+    for old in backups[: len(backups) - keep]:
+        old.unlink()
+        print(f"  Cleaned up old backup: {old.name}")
 
 
 def cmd_restore(backup_file: str, auto_confirm: bool = False):
