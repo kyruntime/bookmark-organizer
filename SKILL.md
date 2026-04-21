@@ -139,7 +139,12 @@ Agent: → Execute all confirmed levels
 
 ### Phase 3: Execute Reorganization
 
-Create folders and move bookmarks. Execute in batches to avoid overwhelming Chrome.
+**Before making any changes, create a backup:**
+```bash
+bash {baseDir}/scripts/backup_restore.sh backup
+```
+
+Then create folders and move bookmarks. Execute in batches to avoid overwhelming Chrome.
 
 **Create a folder:**
 ```bash
@@ -279,4 +284,7 @@ If the user says they're unhappy with the result or wants to undo, immediately o
 - All operations go through `chrome.bookmarks.*` API → sync-safe
 - Bookmark IDs are session-stable but may change across Chrome restarts
 - The "Bookmarks Bar" is always `tree[0].children[0]`, "Other Bookmarks" is `tree[0].children[1]`
+- **Check both Bookmark Bar AND "Other Bookmarks"** — users may have items in both locations
+- When folder names contain single quotes or backslashes, escape them before injecting into AppleScript JS calls (replace `'` with `\\'`)
 - Keep JavaScript in AppleScript calls simple — complex scripts may hit shell escaping issues
+- **Prefer the Python API** (`scripts/chrome_api.py`) over raw AppleScript for complex operations — it handles escaping, async polling, and chunked reads automatically
