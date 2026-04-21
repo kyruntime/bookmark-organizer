@@ -113,6 +113,35 @@ bookmark-organizer/
 └── .gitignore
 ```
 
+## 备份与恢复
+
+整理前 Agent 会**自动创建备份**，如果不满意可以一键恢复。你也可以手动操作：
+
+```bash
+# 创建备份（保存到 ~/.bookmark-organizer/backups/）
+bash scripts/backup_restore.sh backup
+
+# 查看所有备份
+bash scripts/backup_restore.sh list
+
+# 恢复到某个备份（交互式确认）
+bash scripts/backup_restore.sh restore ~/.bookmark-organizer/backups/bookmarks_20260421_143000.json
+
+# 跳过确认直接恢复（Agent 调用时使用）
+bash scripts/backup_restore.sh restore <backup_file> --yes
+```
+
+备份文件记录了每个书签的 ID、标题、URL 和所属文件夹，恢复时通过 `chrome.bookmarks.move()` 把每个书签移回原位。
+
+## 去重检测
+
+```bash
+# 扫描重复书签
+python3 scripts/chrome_api.py dupes
+```
+
+支持 URL 归一化（忽略 trailing slash、http/https 差异），找到重复后展示给用户确认再删除。
+
 ## 验证安装
 
 运行冒烟测试确认一切正常（需要 Chrome 运行中）：
