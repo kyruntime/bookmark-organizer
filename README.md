@@ -55,45 +55,33 @@
 
 ## 安装
 
-### Cursor
-
-```bash
-# 安装到用户级（所有项目都可用）
-cp -r bookmark-organizer ~/.cursor/skills/
-
-# 或安装到特定项目
-cp -r bookmark-organizer /path/to/project/.cursor/skills/
-```
-
-### Claude Code
-
-```bash
-cp -r bookmark-organizer ~/.claude/skills/
-```
-
-### OpenClaw
-
-```bash
-# 通过 ClawHub（发布后可用）
-openclaw skills install bookmark-organizer
-
-# 或手动安装
-cp -r bookmark-organizer ~/.agents/skills/
-```
-
 ### 一键安装（推荐）
 
 ```bash
-# 安装到所有平台
-./install.sh --all
+git clone https://github.com/YOUR_USERNAME/bookmark-organizer.git
+cd bookmark-organizer
 
-# 或指定平台
+# 安装到 Cursor
 ./install.sh --cursor
+
+# 安装到 Claude Code
 ./install.sh --claude
-./install.sh --openclaw
+
+# 安装到所有支持的平台
+./install.sh --all
 ```
 
-`install.sh` 会创建符号链接，后续更新代码自动生效。
+`install.sh` 会创建符号链接到 `~/.cursor/skills/`（或对应平台目录），后续更新代码自动生效。
+
+### 手动安装
+
+```bash
+# Cursor
+cp -r bookmark-organizer ~/.cursor/skills/
+
+# Claude Code
+cp -r bookmark-organizer ~/.claude/skills/
+```
 
 ## 使用方式
 
@@ -124,6 +112,17 @@ bookmark-organizer/
 │   └── smoke_test.py          # 冒烟测试
 └── .gitignore
 ```
+
+## 验证安装
+
+运行冒烟测试确认一切正常（需要 Chrome 运行中）：
+
+```bash
+cd bookmark-organizer
+python3 scripts/smoke_test.py
+```
+
+预期输出 `Results: 6/6 passed`。脚本会自动导航到 `chrome://bookmarks` 页面（API 仅在该页面可用）。
 
 ## 技术原理
 
