@@ -10,7 +10,6 @@
 | **交互式规划** | ✅ | 展示拟定结构，用户确认后再执行 |
 | **创建与移动** | ✅ | 通过 Chrome Bookmarks API 创建文件夹、移动书签 |
 | **去重检测** | ✅ | 检测并合并重复的 URL（支持 http/https 归一化） |
-| **死链检查** | 🚧 | 识别已失效的链接（404） |
 | **备份与回滚** | ✅ | 操作前自动快照，不满意可一键恢复到之前的状态 |
 | **多浏览器** | 🔜 | 目前支持 Chrome（macOS）；Safari、Firefox、Edge 计划中 |
 
@@ -90,7 +89,6 @@ cp -r bookmark-organizer ~/.claude/skills/
 - "帮我整理一下 Chrome 书签"
 - "Help me organize my Chrome bookmarks"
 - "找出重复的书签"
-- "检查有没有失效的书签链接"
 - "把技术学习里的书签再细分一下"
 
 Agent 会根据 Skill 描述中的触发词自动加载此技能。
@@ -172,7 +170,6 @@ python3 scripts/smoke_test.py
 - Windows / Linux 支持（需要不同的浏览器自动化方案）
 - Safari、Firefox、Edge 浏览器支持
 - 更智能的基于 ML 的分类
-- 链接健康检查（批量验证 URL 有效性）
 
 ## 许可证
 

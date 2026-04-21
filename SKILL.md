@@ -4,8 +4,8 @@ description: >-
   Organize, categorize, deduplicate, and clean up browser bookmarks using
   Chrome's native Bookmarks API via AppleScript. Use when the user asks to
   organize bookmarks, clean up bookmarks, sort bookmarks, find duplicate
-  bookmarks, check for broken bookmark links, or manage their browser
-  bookmark collection. Supports Chinese and English.
+  bookmarks, or manage their browser bookmark collection.
+  Supports Chinese and English.
 ---
 
 # Bookmark Organizer
