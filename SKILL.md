@@ -116,25 +116,43 @@ Proposed structure:
 
 #### Interactive Planning Rules
 
-This is a conversational skill. The user drives the final structure:
+This is a conversational skill. The user drives the final structure.
 
-1. **Start with top-level (L1) proposal only.** Don't overwhelm with deep nesting upfront.
-2. **Ask if user wants sub-categories** for large folders (50+ items). If yes, propose L2.
-3. **Support iterative deepening.** User may request further breakdown → propose L3 within that folder.
-4. **Respect user overrides.** If user wants to move items to a different parent, adjust the plan.
-5. **No fixed depth limit.** Support 2-level, 3-level, or even 4-level nesting if the user wants it.
-6. **Confirm at each level** before creating folders and moving items.
-7. **Use the user's language** for folder names. If user speaks Chinese, name folders in Chinese.
+**First, assess the current state:**
+- If bookmarks are **well-organized** (most items in named folders with clear hierarchy), show the **complete existing structure** (all levels) and ask "What would you like to adjust?"
+- If bookmarks are **messy** (many uncategorized items, flat structure, no clear folders), propose a reorganization plan starting from L1.
 
-Example interaction flow:
+**Planning rules:**
+
+1. **Show the full existing structure** when reading bookmarks — always include all levels (L1, L2, L3+), not just top-level. The user needs to see the complete picture to make decisions.
+2. **Propose changes based on what needs fixing**, not a full rewrite. If the structure is already 80% good, only suggest the 20% that needs work.
+3. **Ask if user wants sub-categories** for large folders (50+ items). If yes, propose sub-folders.
+4. **Support iterative deepening.** User may request further breakdown → propose deeper nesting within that folder.
+5. **Respect user overrides.** If user wants to move items to a different parent, adjust the plan.
+6. **No fixed depth limit.** Support 2-level, 3-level, or even 4-level nesting if the user wants it.
+7. **Confirm before executing** any changes.
+8. **Use the user's language** for folder names. If user speaks Chinese, name folders in Chinese.
+
+Example interaction for **already organized** bookmarks:
 ```
-Agent: "Proposed top-level structure: [L1 plan]. Shall I proceed, or adjust?"
-User:  "Tech has too many items, break it down further"
-Agent: "Got it. Proposed sub-categories for Tech: [L2 plan]. OK?"
-User:  "Can you split Java Basics further?"
-Agent: "Sure. Proposed sub-categories for Java Basics: [L3 plan]. OK?"
+Agent: "Your bookmarks are already well-organized:
+  ├── Work-Acme (50)
+  │   ├── Dashboard (20)
+  │   └── Docs (30)
+  ├── Tech (120)
+  │   ├── Java (30) ...
+  └── Personal (40)
+  What would you like to adjust?"
+User:  "Tech is too crowded, split it more"
+Agent: "Here's Tech currently: [full L2+L3 listing]. I suggest..."
+```
+
+Example interaction for **messy** bookmarks:
+```
+Agent: "You have 500 bookmarks, most are uncategorized. Here's my proposed structure:
+  [full multi-level plan]. Shall I proceed?"
 User:  "Looks good, go ahead"
-Agent: → Execute all confirmed levels
+Agent: → Execute
 ```
 
 ### Phase 3: Execute Reorganization
