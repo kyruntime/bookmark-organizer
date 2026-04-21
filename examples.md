@@ -8,29 +8,30 @@
 
 1. Check prerequisites (Chrome running, JS Apple Events enabled)
 2. Read bookmark tree via `chrome.bookmarks.getTree()`
-3. Analyze: 640 bookmarks, 35 folders, many uncategorized
+3. Analyze: 320 bookmarks, 18 folders, many uncategorized
 4. Propose:
 
 ```
 Proposed structure:
-├── 工作-随行付 (50 links)
-│   ├── resto (26)
-│   ├── 销售子系统 (14)
-│   └── 供应链管理系统 (4)
-├── 工作-233 (272 links)
-│   ├── 233 (215)
-│   ├── 文档服务器 (48)
-│   └── 正式 (7)
-├── 技术学习 (170 links)
-│   ├── Java基础 (31)
-│   ├── Spring生态 (21)
+├── 工作-ProjectA (85 links)
+│   ├── 后台管理 (40)
+│   ├── API文档 (25)
+│   └── 部署运维 (20)
+├── 工作-ProjectB (60 links)
+│   ├── 开发环境 (35)
+│   └── 测试环境 (25)
+├── 技术学习 (90 links)
+│   ├── Java (25)
+│   ├── 前端 (20)
 │   ├── 数据库 (15)
-│   └── ...
-├── AI & Cursor (20 links)
-├── 日常工具 (10 links)
-├── 生活 (73 links)
-├── 归档 (41 links)
-└── 小程序开发 (4 links)
+│   └── 博客与教程 (30)
+├── AI & 工具 (25 links)
+├── 日常工具 (15 links)
+├── 生活 (30 links)
+│   ├── 购物 (12)
+│   ├── 娱乐 (10)
+│   └── 其他 (8)
+└── 归档 (15 links)
 ```
 
 5. User confirms → execute
@@ -46,9 +47,10 @@ Proposed structure:
 2. Report:
 
 ```
-Found 12 duplicate URLs:
-1. https://github.com/settings — appears in "开发工具" and "日常工具"
-2. https://docs.spring.io/... — appears in "Java" and "Spring"
+Found 8 duplicate URLs:
+1. https://github.com/settings — appears in "开发工具" and "日常"
+2. https://docs.spring.io/spring-boot — appears in "Java" and "Spring"
+3. https://mail.google.com — appears in root and "日常工具"
 ...
 
 Which duplicates should I remove? (I'll keep the copy in the more relevant folder)
