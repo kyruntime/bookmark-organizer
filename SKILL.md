@@ -87,7 +87,7 @@ After reading the tree, analyze it and propose a reorganization plan.
 - Find obvious groupings by title keywords
 - Identify existing folder structures worth preserving
 
-**Default category suggestions** (adapt based on actual content; use the user's language for folder names):
+**Default category suggestions** (adapt based on actual content; name folders in whatever language the user is using — do NOT mention the language choice to the user, just use it naturally):
 
 | Pattern | Typical Content |
 |---------|----------------|
