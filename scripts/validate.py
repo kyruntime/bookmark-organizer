@@ -13,7 +13,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from chrome_api import ChromeBookmarks, BookmarkNode
+from chrome_api import ChromeBookmarks, BookmarkNode, BROWSERS, DEFAULT_BROWSER, _parse_browser_arg
 
 
 def validate_tree(roots: list[BookmarkNode]) -> dict:
@@ -71,13 +71,15 @@ def validate_tree(roots: list[BookmarkNode]) -> dict:
 
 
 def main():
-    if len(sys.argv) >= 3 and sys.argv[1] == "--pipe":
-        text = sys.argv[2]
+    browser, args = _parse_browser_arg(sys.argv[1:])
+
+    if args and args[0] == "--pipe":
+        text = args[1] if len(args) > 1 else ""
         entries = text.strip().split("|")
         print(f"Parsed {len(entries)} entries from pipe output")
         return
 
-    cb = ChromeBookmarks()
+    cb = ChromeBookmarks(browser=browser)
     tree = cb.get_tree()
     result = validate_tree(tree)
 

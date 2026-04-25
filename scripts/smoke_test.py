@@ -21,7 +21,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from chrome_api import ChromeBookmarks, ChromeError
+from chrome_api import ChromeBookmarks, ChromeError, _parse_browser_arg
 
 
 def test(name: str, func):
@@ -36,23 +36,25 @@ def test(name: str, func):
 
 
 def main():
-    print("Bookmark Organizer — Smoke Test")
+    browser, _ = _parse_browser_arg(sys.argv[1:])
+
+    print(f"Bookmark Organizer — Smoke Test (browser: {browser})")
     print("=" * 50)
 
-    cb = ChromeBookmarks(wait=2)
+    cb = ChromeBookmarks(browser=browser, wait=2)
     passed = 0
     failed = 0
     total = 0
 
-    # Test 1: Chrome running
+    # Test 1: Browser running
     total += 1
     try:
-        cb.check_chrome_running()
-        print("  PASS  Chrome is running")
+        cb.check_browser_running()
+        print(f"  PASS  {cb.display_name} is running")
         passed += 1
     except ChromeError as e:
-        print(f"  FAIL  Chrome check: {e}")
-        print("\nCannot continue without Chrome. Exiting.")
+        print(f"  FAIL  Browser check: {e}")
+        print("\nCannot continue without the browser. Exiting.")
         sys.exit(1)
 
     # Test 2: Read tree
