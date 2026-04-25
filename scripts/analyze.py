@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Analyze Chrome bookmarks and suggest categories.
+"""Analyze browser bookmarks and suggest categories.
 
 Usage:
-    python analyze.py              # Read from Chrome via API (default)
-    python analyze.py --json FILE  # Read from a local bookmarks JSON file
+    python analyze.py [-b BROWSER]    # Read from browser via API (default)
+    python analyze.py --json FILE     # Read from a local bookmarks JSON file
 
 Output: JSON report with stats, domain clusters, and suggested categories.
 """
@@ -13,7 +13,7 @@ import sys
 from collections import Counter, defaultdict
 from urllib.parse import urlparse
 
-from chrome_api import ChromeBookmarks, BookmarkNode
+from chrome_api import ChromeBookmarks, BookmarkNode, _parse_browser_arg
 
 DOMAIN_CATEGORIES = {
     "github.com": "Dev Tools",
@@ -149,9 +149,11 @@ def _node_depth(node: BookmarkNode, roots: list[BookmarkNode]) -> int:
 
 
 def main():
+    browser, args = _parse_browser_arg(sys.argv[1:])
+
     use_file = None
-    if len(sys.argv) >= 3 and sys.argv[1] == "--json":
-        use_file = sys.argv[2]
+    if len(args) >= 2 and args[0] == "--json":
+        use_file = args[1]
 
     if use_file:
         from pathlib import Path
@@ -186,7 +188,7 @@ def main():
         }
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
-        cb = ChromeBookmarks()
+        cb = ChromeBookmarks(browser=browser)
         tree = cb.get_tree()
         report = analyze_tree(tree)
         print(json.dumps(report, ensure_ascii=False, indent=2))

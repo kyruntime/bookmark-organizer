@@ -13,7 +13,7 @@ An AI Agent Skill that organizes your browser bookmarks through natural language
 | **Create & Move** | ✅ | Creates folders and moves bookmarks via Chrome Bookmarks API |
 | **Deduplication** | ✅ | Detects and merges duplicate URLs (with http/https normalization) |
 | **Backup & Restore** | ✅ | Auto-snapshots before changes; one-click rollback if unhappy |
-| **Multi-browser** | 🔜 | Chrome (macOS) supported; Safari, Firefox, Edge planned |
+| **Multi-browser** | ✅ | Chrome & Doubao Browser (macOS); Safari, Firefox, Edge planned |
 
 ## How It Works
 
@@ -47,12 +47,19 @@ An AI Agent Skill that organizes your browser bookmarks through natural language
 └─────────────────────────────────────────────────────┘
 ```
 
+## Supported Browsers
+
+| Key | Browser | macOS App Name |
+|-----|---------|---------------|
+| `chrome` | Google Chrome (default) | Google Chrome |
+| `doubao` | 豆包浏览器 (Doubao Browser) | Doubao Browser |
+
 ## Prerequisites
 
-- **macOS** (uses AppleScript to communicate with Chrome)
-- **Google Chrome** with "Allow JavaScript from Apple Events" enabled
-  - Chrome menu → View → Developer → Allow JavaScript from Apple Events
-- Chrome must be running with at least one tab open
+- **macOS** (uses AppleScript to communicate with the browser)
+- **Google Chrome** or **Doubao Browser** with "Allow JavaScript from Apple Events" enabled
+  - Browser menu → View → Developer → Allow JavaScript from Apple Events
+- The browser must be running with at least one tab open
 
 ## Installation
 
@@ -89,6 +96,7 @@ cp -r bookmark-organizer ~/.claude/skills/
 Just tell the AI Agent:
 
 - "Help me organize my Chrome bookmarks"
+- "Help me organize my Doubao Browser bookmarks"
 - "Find duplicate bookmarks"
 - "Split the Tech folder into sub-categories"
 
@@ -154,11 +162,31 @@ Expected output: `Results: 6/6 passed`.
 
 > **Note**: The script automatically opens a new Chrome tab at `chrome://bookmarks` (the API only works on that page) and closes it when done. A temporary test folder is created and immediately deleted — your bookmarks are not affected.
 
+## Multi-browser Support
+
+All commands and Python APIs support the `-b`/`--browser` parameter:
+
+```bash
+# Default: Google Chrome
+python3 scripts/chrome_api.py tree
+
+# Doubao Browser (豆包浏览器)
+python3 scripts/chrome_api.py -b doubao tree
+python3 scripts/backup_restore.py -b doubao backup
+python3 scripts/smoke_test.py -b doubao
+```
+
+Or via the Python API:
+```python
+from chrome_api import ChromeBookmarks
+cb = ChromeBookmarks(browser="doubao")
+```
+
 ## How It Works (Technical)
 
-Directly modifying Chrome's `Bookmarks` JSON file is unreliable — Chrome's cloud sync will revert the changes.
+Directly modifying the browser's `Bookmarks` JSON file is unreliable — cloud sync will revert the changes.
 
-This skill uses **AppleScript → Chrome JavaScript execution** to call `chrome.bookmarks.*` APIs. Chrome treats these as internal operations and syncs them correctly.
+This skill uses **AppleScript → Browser JavaScript execution** to call `chrome.bookmarks.*` APIs. The browser treats these as internal operations and syncs them correctly.
 
 Core API calls:
 - `chrome.bookmarks.getTree()` — Read the full bookmark tree
@@ -171,7 +199,8 @@ Core API calls:
 
 PRs welcome! Areas that need help:
 - Windows / Linux support (requires alternative browser automation)
-- Safari, Firefox, Edge browser support
+- More Chromium-based browsers (Arc, Brave, Edge, etc.)
+- Safari, Firefox support
 - Smarter ML-based categorization
 
 ## License

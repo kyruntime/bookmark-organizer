@@ -2,10 +2,12 @@
 """Bookmark backup and restore via Chrome Bookmarks API.
 
 Usage:
-    python backup_restore.py backup [output_dir]
-    python backup_restore.py restore <backup_file> [--yes]
+    python backup_restore.py [-b BROWSER] backup [output_dir]
+    python backup_restore.py [-b BROWSER] restore <backup_file> [--yes]
     python backup_restore.py list [backup_dir]
 """
+
+from __future__ import annotations
 
 import json
 import os
@@ -14,16 +16,16 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from chrome_api import ChromeBookmarks, ChromeError
+from chrome_api import ChromeBookmarks, ChromeError, BROWSERS, DEFAULT_BROWSER
 
 DEFAULT_BACKUP_DIR = Path.home() / ".bookmark-organizer" / "backups"
 
 
-def cmd_backup(output_dir: str | None = None):
+def cmd_backup(output_dir: str | None = None, browser: str = DEFAULT_BROWSER):
     backup_dir = Path(output_dir) if output_dir else DEFAULT_BACKUP_DIR
     backup_dir.mkdir(parents=True, exist_ok=True)
 
-    cb = ChromeBookmarks()
+    cb = ChromeBookmarks(browser=browser)
     print("Reading bookmark tree...")
     tree = cb.get_tree()
 
@@ -40,6 +42,7 @@ def cmd_backup(output_dir: str | None = None):
 
     data = {
         "version": 1,
+        "browser": browser,
         "timestamp": timestamp,
         "date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "total_items": len(items),
@@ -64,7 +67,7 @@ def _cleanup_old_backups(backup_dir: Path, keep: int = 10):
         print(f"  Cleaned up old backup: {old.name}")
 
 
-def cmd_restore(backup_file: str, auto_confirm: bool = False):
+def cmd_restore(backup_file: str, auto_confirm: bool = False, browser: str | None = None):
     path = Path(backup_file)
     if not path.exists():
         print(f"ERROR: Backup file not found: {backup_file}", file=sys.stderr)
@@ -73,7 +76,9 @@ def cmd_restore(backup_file: str, auto_confirm: bool = False):
     data = json.loads(path.read_text(encoding="utf-8"))
     total = data["total_items"]
     bk_date = data.get("date", "unknown")
-    print(f"Backup contains {total} items (created {bk_date})")
+    # 从备份文件中读取 browser，命令行参数可覆盖
+    bk_browser = browser or data.get("browser", DEFAULT_BROWSER)
+    print(f"Backup contains {total} items (created {bk_date}, browser: {bk_browser})")
 
     items = [i for i in data["items"] if i.get("parentId") and i["parentId"] != "0"]
     print(f"\nRESTORE PLAN:")
@@ -86,7 +91,7 @@ def cmd_restore(backup_file: str, auto_confirm: bool = False):
             print("Restore cancelled.")
             return
 
-    cb = ChromeBookmarks()
+    cb = ChromeBookmarks(browser=bk_browser)
     moved = 0
     errors = 0
 
@@ -134,33 +139,55 @@ def cmd_list(backup_dir: str | None = None):
         print("  (no backups found)")
 
 
+def _parse_browser_arg(argv: list[str]) -> tuple[str | None, list[str]]:
+    """从 argv 中提取 -b/--browser 参数，返回 (browser, 剩余 argv)。"""
+    browser = None
+    rest = []
+    i = 0
+    while i < len(argv):
+        if argv[i] in ("-b", "--browser") and i + 1 < len(argv):
+            browser = argv[i + 1]
+            i += 2
+        elif argv[i].startswith("--browser="):
+            browser = argv[i].split("=", 1)[1]
+            i += 1
+        else:
+            rest.append(argv[i])
+            i += 1
+    return browser, rest
+
+
 def main():
-    if len(sys.argv) < 2:
+    browser, argv = _parse_browser_arg(sys.argv[1:])
+
+    if not argv:
+        browsers_str = ", ".join(f"{k}({v['display_name']})" for k, v in BROWSERS.items())
         print("Bookmark Backup & Restore")
         print()
         print("Usage:")
-        print(f"  {sys.argv[0]} backup [dir]            Save current bookmarks")
-        print(f"  {sys.argv[0]} restore <file> [--yes]  Restore from backup")
-        print(f"  {sys.argv[0]} list [dir]              List available backups")
+        print(f"  {sys.argv[0]} [-b BROWSER] backup [dir]            Save current bookmarks")
+        print(f"  {sys.argv[0]} [-b BROWSER] restore <file> [--yes]  Restore from backup")
+        print(f"  {sys.argv[0]} [-b BROWSER] list [dir]              List available backups")
         print()
+        print(f"Browsers: {browsers_str}")
         print(f"Default backup directory: {DEFAULT_BACKUP_DIR}")
         sys.exit(0)
 
-    cmd = sys.argv[1]
+    cmd = argv[0]
 
     if cmd == "backup":
-        result = cmd_backup(sys.argv[2] if len(sys.argv) > 2 else None)
+        result = cmd_backup(argv[1] if len(argv) > 1 else None, browser=browser or DEFAULT_BROWSER)
         print(result)
 
     elif cmd == "restore":
-        if len(sys.argv) < 3:
+        if len(argv) < 2:
             print(f"Usage: {sys.argv[0]} restore <backup_file> [--yes]", file=sys.stderr)
             sys.exit(1)
-        auto = "--yes" in sys.argv or "-y" in sys.argv
-        cmd_restore(sys.argv[2], auto_confirm=auto)
+        auto = "--yes" in argv or "-y" in argv
+        cmd_restore(argv[1], auto_confirm=auto, browser=browser)
 
     elif cmd == "list":
-        cmd_list(sys.argv[2] if len(sys.argv) > 2 else None)
+        cmd_list(argv[1] if len(argv) > 1 else None)
 
     else:
         print(f"Unknown command: {cmd}", file=sys.stderr)

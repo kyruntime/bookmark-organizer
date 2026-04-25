@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Chrome Bookmarks API wrapper via AppleScript on macOS.
+"""Chromium 浏览器书签 API wrapper（macOS AppleScript）。
 
-Provides a Python interface to chrome.bookmarks.* API calls,
-executed through AppleScript → Chrome JavaScript injection.
+通过 AppleScript → JavaScript 注入调用 chrome.bookmarks.* API，
+支持 Google Chrome 和豆包浏览器（Doubao Browser）。
 
 Usage:
     from chrome_api import ChromeBookmarks
-    cb = ChromeBookmarks()
+    cb = ChromeBookmarks()                    # 默认 Chrome
+    cb = ChromeBookmarks(browser="doubao")    # 豆包浏览器
     tree = cb.get_tree()
     cb.create_folder(parent_id="1", title="New Folder")
     cb.move(bookmark_id="42", parent_id="100")
@@ -21,6 +22,22 @@ from typing import Optional
 
 
 WAIT_SECONDS = 2
+
+# 支持的浏览器配置：app_name 用于 AppleScript，process_name 用于 pgrep
+BROWSERS = {
+    "chrome": {
+        "app_name": "Google Chrome",
+        "process_name": "Google Chrome",
+        "display_name": "Google Chrome",
+    },
+    "doubao": {
+        "app_name": "Doubao Browser",
+        "process_name": "Doubao Browser",
+        "display_name": "豆包浏览器",
+    },
+}
+
+DEFAULT_BROWSER = "chrome"
 
 
 @dataclass
@@ -56,21 +73,28 @@ class ChromeError(Exception):
 
 
 class ChromeBookmarks:
-    def __init__(self, wait: float = WAIT_SECONDS, max_poll: float = 15):
+    def __init__(self, browser: str = DEFAULT_BROWSER, wait: float = WAIT_SECONDS, max_poll: float = 15):
+        if browser not in BROWSERS:
+            raise ChromeError(f"不支持的浏览器: {browser}（可选: {', '.join(BROWSERS)}）")
+        cfg = BROWSERS[browser]
+        self.browser = browser
+        self.app_name = cfg["app_name"]
+        self.process_name = cfg["process_name"]
+        self.display_name = cfg["display_name"]
         self.wait = wait
         self.max_poll = max_poll
         self._opened_tab = False
 
     def _ensure_ready(self):
-        """Ensure Chrome is running and active tab is chrome://bookmarks."""
-        self.check_chrome_running()
+        """确保浏览器正在运行且 active tab 为 chrome://bookmarks。"""
+        self.check_browser_running()
         self.ensure_bookmarks_page()
 
     def _exec_js(self, js_code: str) -> str:
-        """Execute JavaScript in Chrome and return the immediate eval result."""
+        """在浏览器中执行 JavaScript 并返回结果。"""
         escaped = js_code.replace("\\", "\\\\").replace('"', '\\"')
         cmd = (
-            f'tell application "Google Chrome" to execute front window\'s '
+            f'tell application "{self.app_name}" to execute front window\'s '
             f'active tab javascript "{escaped}"'
         )
         try:
@@ -106,18 +130,16 @@ class ChromeBookmarks:
             f"Timed out waiting for '{expect_prefix}...', got: {title[:100]}"
         )
 
-    @staticmethod
-    def check_chrome_running():
+    def check_browser_running(self):
         result = subprocess.run(
-            ["pgrep", "-x", "Google Chrome"],
+            ["pgrep", "-x", self.process_name],
             capture_output=True,
         )
         if result.returncode != 0:
-            raise ChromeError("Google Chrome is not running")
+            raise ChromeError(f"{self.display_name} is not running")
 
     def ensure_bookmarks_page(self):
-        """Ensure active tab is chrome://bookmarks. Finds an existing bookmarks
-        tab or creates a new one. Does NOT activate/focus Chrome."""
+        """确保 active tab 为 chrome://bookmarks，找到已有的或新建一个。"""
         try:
             url = self._exec_js("window.location.href")
             if url.startswith("chrome://bookmarks"):
@@ -125,8 +147,8 @@ class ChromeBookmarks:
         except ChromeError:
             pass
 
-        script = '''\
-tell application "Google Chrome"
+        script = f'''\
+tell application "{self.app_name}"
     set w to front window
     set foundIdx to 0
     repeat with i from 1 to count of tabs of w
@@ -140,7 +162,7 @@ tell application "Google Chrome"
         return "found"
     else
         set prevCount to count of tabs of w
-        tell w to make new tab with properties {URL:"about:blank"}
+        tell w to make new tab with properties {{URL:"about:blank"}}
         delay 0.5
         set URL of active tab of w to "chrome://bookmarks/"
         return "created"
@@ -158,14 +180,14 @@ end tell'''
             raise ChromeError(f"Failed to open bookmarks tab: {e.stderr}") from e
 
     def cleanup(self):
-        """Close the bookmarks tab if we opened one."""
+        """关闭我们打开的 bookmarks tab。"""
         if not self._opened_tab:
             return
         try:
             subprocess.run(
                 [
                     "osascript", "-e",
-                    'tell application "Google Chrome" to tell front window to '
+                    f'tell application "{self.app_name}" to tell front window to '
                     'close active tab',
                 ],
                 capture_output=True, text=True, check=True, timeout=10,
@@ -407,9 +429,33 @@ chrome.bookmarks.removeTree('{folder_id}', function() {{
 
 # ── CLI ──
 
+def _parse_browser_arg(argv: list[str]) -> tuple[str, list[str]]:
+    """从 argv 中提取 -b/--browser 参数，返回 (browser, 剩余 argv)。"""
+    browser = DEFAULT_BROWSER
+    rest = []
+    i = 0
+    while i < len(argv):
+        if argv[i] in ("-b", "--browser") and i + 1 < len(argv):
+            browser = argv[i + 1]
+            i += 2
+        elif argv[i].startswith("--browser="):
+            browser = argv[i].split("=", 1)[1]
+            i += 1
+        else:
+            rest.append(argv[i])
+            i += 1
+    return browser, rest
+
+
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python chrome_api.py <command> [args...]")
+    browser, args = _parse_browser_arg(sys.argv[1:])
+
+    if not args:
+        browsers_str = ", ".join(f"{k}({v['display_name']})" for k, v in BROWSERS.items())
+        print(f"Usage: python chrome_api.py [-b BROWSER] <command> [args...]")
+        print(f"")
+        print(f"Browsers: {browsers_str}")
+        print(f"Default:  {DEFAULT_BROWSER}")
         print("")
         print("Commands:")
         print("  tree              Print bookmark tree summary")
@@ -422,8 +468,8 @@ def main():
         print("  summary           Show structure summary")
         sys.exit(0)
 
-    cb = ChromeBookmarks()
-    cmd = sys.argv[1]
+    cb = ChromeBookmarks(browser=browser)
+    cmd = args[0]
 
     try:
         if cmd == "tree":
@@ -440,25 +486,25 @@ def main():
                 print_tree(root)
 
         elif cmd == "children":
-            children = cb.get_children(sys.argv[2])
+            children = cb.get_children(args[1])
             print(json.dumps(children, ensure_ascii=False, indent=2))
 
         elif cmd == "create":
-            new_id = cb.create_folder(sys.argv[2], sys.argv[3])
+            new_id = cb.create_folder(args[1], args[2])
             print(f"Created folder: {new_id}")
 
         elif cmd == "move":
-            ok = cb.move(sys.argv[2], sys.argv[3])
+            ok = cb.move(args[1], args[2])
             print(f"Move {'succeeded' if ok else 'failed'}")
 
         elif cmd == "move-batch":
-            parent = sys.argv[2]
-            ids = sys.argv[3:]
+            parent = args[1]
+            ids = args[2:]
             count = cb.move_batch(ids, parent)
             print(f"Moved {count} items")
 
         elif cmd == "remove":
-            ok = cb.remove(sys.argv[2])
+            ok = cb.remove(args[1])
             print(f"Remove {'succeeded' if ok else 'failed'}")
 
         elif cmd == "dupes":

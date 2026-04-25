@@ -13,7 +13,7 @@
 | **创建与移动** | ✅ | 通过 Chrome Bookmarks API 创建文件夹、移动书签 |
 | **去重检测** | ✅ | 检测并合并重复的 URL（支持 http/https 归一化） |
 | **备份与回滚** | ✅ | 操作前自动快照，不满意可一键恢复到之前的状态 |
-| **多浏览器** | 🔜 | 目前支持 Chrome（macOS）；Safari、Firefox、Edge 计划中 |
+| **多浏览器** | ✅ | 支持 Chrome 和豆包浏览器（macOS）；Safari、Firefox、Edge 计划中 |
 
 ## 工作原理
 
@@ -47,12 +47,19 @@
 └──────────────────────────────────────────────────────┘
 ```
 
+## 支持的浏览器
+
+| 参数 | 浏览器 | macOS 应用名 |
+|------|--------|-------------|
+| `chrome` | Google Chrome（默认） | Google Chrome |
+| `doubao` | 豆包浏览器 | Doubao Browser |
+
 ## 前提条件
 
-- **macOS**（使用 AppleScript 与 Chrome 通信）
-- **Google Chrome** 并开启「允许 Apple 事件中的 JavaScript」
-  - Chrome 菜单 → 视图 → 开发者 → 允许 Apple 事件中的 JavaScript
-- Chrome 需要正在运行，并至少打开一个标签页
+- **macOS**（使用 AppleScript 与浏览器通信）
+- **Google Chrome** 或 **豆包浏览器** 并开启「允许 Apple 事件中的 JavaScript」
+  - 浏览器菜单 → 视图 → 开发者 → 允许 Apple 事件中的 JavaScript
+- 浏览器需要正在运行，并至少打开一个标签页
 
 ## 安装
 
@@ -89,6 +96,7 @@ cp -r bookmark-organizer ~/.claude/skills/
 直接对 AI Agent 说：
 
 - "帮我整理一下 Chrome 书签"
+- "帮我整理一下豆包浏览器的书签"
 - "Help me organize my Chrome bookmarks"
 - "找出重复的书签"
 - "把技术学习里的书签再细分一下"
@@ -154,11 +162,31 @@ python3 scripts/smoke_test.py
 
 > **注意**：脚本会自动在 Chrome 中新开一个标签页 `chrome://bookmarks`（API 仅在该页面可用），运行结束后自动关闭。运行过程中会创建一个临时测试文件夹并立即删除，不会影响你的书签。
 
+## 多浏览器支持
+
+所有命令和 Python API 均支持 `-b`/`--browser` 参数：
+
+```bash
+# 默认：Google Chrome
+python3 scripts/chrome_api.py tree
+
+# 豆包浏览器
+python3 scripts/chrome_api.py -b doubao tree
+python3 scripts/backup_restore.py -b doubao backup
+python3 scripts/smoke_test.py -b doubao
+```
+
+或通过 Python API：
+```python
+from chrome_api import ChromeBookmarks
+cb = ChromeBookmarks(browser="doubao")
+```
+
 ## 技术原理
 
-直接修改 Chrome 的 `Bookmarks` JSON 文件是不可靠的 —— Chrome 的云同步会把改动覆盖回去。
+直接修改浏览器的 `Bookmarks` JSON 文件是不可靠的 —— 云同步会把改动覆盖回去。
 
-本 Skill 使用 **AppleScript → Chrome JavaScript 执行** 的方式调用 `chrome.bookmarks.*` API，Chrome 会将其视为内部操作并正确同步。
+本 Skill 使用 **AppleScript → 浏览器 JavaScript 执行** 的方式调用 `chrome.bookmarks.*` API，浏览器会将其视为内部操作并正确同步。
 
 核心 API 调用：
 - `chrome.bookmarks.getTree()` — 读取完整书签树
@@ -171,7 +199,8 @@ python3 scripts/smoke_test.py
 
 欢迎 PR！以下方向特别需要帮助：
 - Windows / Linux 支持（需要不同的浏览器自动化方案）
-- Safari、Firefox、Edge 浏览器支持
+- 更多 Chromium 内核浏览器（Arc、Brave、Edge 等）
+- Safari、Firefox 支持
 - 更智能的基于 ML 的分类
 
 ## 许可证

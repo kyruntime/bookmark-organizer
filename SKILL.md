@@ -2,30 +2,43 @@
 name: bookmark-organizer
 description: >-
   Organize, categorize, deduplicate, and clean up browser bookmarks using
-  Chrome's native Bookmarks API via AppleScript. Use when the user asks to
-  organize bookmarks, clean up bookmarks, sort bookmarks, find duplicate
-  bookmarks, or manage their browser bookmark collection.
+  Chrome's native Bookmarks API via AppleScript. Supports Google Chrome and
+  Doubao Browser (豆包浏览器). Use when the user asks to organize bookmarks,
+  clean up bookmarks, sort bookmarks, find duplicate bookmarks, or manage
+  their browser bookmark collection.
 ---
 
 # Bookmark Organizer
 
-Organize Chrome bookmarks through the browser's native API — no file hacking, no sync conflicts.
+Organize Chromium-based browser bookmarks through the browser's native API — no file hacking, no sync conflicts.
+
+## Supported Browsers
+
+| Key | Browser | macOS App Name |
+|-----|---------|---------------|
+| `chrome` | Google Chrome | Google Chrome |
+| `doubao` | 豆包浏览器 | Doubao Browser |
+
+Use `-b`/`--browser` to switch (default: `chrome`):
+```bash
+python3 {baseDir}/scripts/chrome_api.py -b doubao tree
+```
 
 ## Prerequisites Check
 
 Before starting, run through these checks:
 
-1. **Ask which browser** if the user didn't specify. Currently only **Google Chrome on macOS** is supported.
-   - If the user mentions Safari, Firefox, or Edge, explain that support is coming soon and this skill currently only works with Chrome.
-2. **macOS only** — this skill uses AppleScript to communicate with Chrome.
-3. **Chrome must be running** with at least one tab open.
-4. **"Allow JavaScript from Apple Events" must be enabled** in Chrome:
+1. **Ask which browser** if the user didn't specify. Currently **Google Chrome** and **豆包浏览器 (Doubao Browser)** on macOS are supported.
+   - If the user mentions Safari, Firefox, or Edge, explain that support is coming soon and this skill currently only works with Chrome and Doubao Browser.
+2. **macOS only** — this skill uses AppleScript to communicate with the browser.
+3. **The target browser must be running** with at least one tab open.
+4. **"Allow JavaScript from Apple Events" must be enabled** in the browser:
    - Menu → View → Developer → Allow JavaScript from Apple Events
    - If the user gets an authorization error, guide them to this setting.
 
-The skill will automatically open a new Chrome tab for `chrome://bookmarks/` (the API only works on that page) and close it when done. The user's existing tabs are not affected.
+The skill will automatically open a new tab for `chrome://bookmarks/` (the API only works on that page) and close it when done. The user's existing tabs are not affected.
 
-**Do NOT activate or bring Chrome to the foreground.** Use `set URL of active tab` only, not `activate`. The user should stay in their current application (Cursor) while the skill operates on Chrome in the background.
+**Do NOT activate or bring the browser to the foreground.** Use `set URL of active tab` only, not `activate`. The user should stay in their current application while the skill operates in the background.
 
 ## Core Workflow
 
@@ -34,8 +47,11 @@ The skill will automatically open a new Chrome tab for `chrome://bookmarks/` (th
 **Always use the Python API** — it handles tab management, async polling, and chunked reads automatically:
 
 ```bash
-# Print the full bookmark tree
+# Print the full bookmark tree (默认 Chrome)
 python3 {baseDir}/scripts/chrome_api.py tree
+
+# 豆包浏览器
+python3 {baseDir}/scripts/chrome_api.py -b doubao tree
 
 # Or get a summary with folder counts
 python3 {baseDir}/scripts/chrome_api.py summary
@@ -44,7 +60,7 @@ python3 {baseDir}/scripts/chrome_api.py summary
 python3 {baseDir}/scripts/chrome_api.py children FOLDER_ID
 ```
 
-The Python API automatically opens a new Chrome tab for `chrome://bookmarks/` and closes it when done. The user's existing tabs are never affected.
+The Python API automatically opens a new tab for `chrome://bookmarks/` and closes it when done. The user's existing tabs are never affected.
 
 ### Phase 2: Analyze and Plan
 
@@ -135,6 +151,8 @@ Agent: → Execute
 **Before making any changes, create a backup:**
 ```bash
 python3 {baseDir}/scripts/backup_restore.py backup
+# 豆包浏览器
+python3 {baseDir}/scripts/backup_restore.py -b doubao backup
 ```
 After the backup completes, **tell the user the backup file path** so they know where to find it if they need to restore later.
 
@@ -164,7 +182,8 @@ For complex sequences (many creates + moves), use Python directly for better con
 ```python
 import sys; sys.path.insert(0, "{baseDir}/scripts")
 from chrome_api import ChromeBookmarks
-cb = ChromeBookmarks()
+cb = ChromeBookmarks()                    # Chrome（默认）
+# cb = ChromeBookmarks(browser="doubao")  # 豆包浏览器
 folder_id = cb.create_folder("1", "New Category")
 cb.move_batch(["42", "43", "44"], folder_id)
 cb.cleanup()
@@ -233,16 +252,18 @@ If the user says they're unhappy with the result or wants to undo, immediately o
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `execution error: Not authorized` | JS from Apple Events not enabled | Guide user to Chrome → View → Developer → Allow JavaScript from Apple Events |
-| `Can't get window 1` | No Chrome window open | Ask user to open Chrome with any tab |
-| Bookmark IDs not found | Chrome restarted (IDs change) | Re-read the tree to get fresh IDs |
+| `execution error: Not authorized` | JS from Apple Events not enabled | Guide user to Browser → View → Developer → Allow JavaScript from Apple Events |
+| `Can't get window 1` | No browser window open | Ask user to open the browser with any tab |
+| `XXX is not running` | Target browser not running | Ask user to launch the browser |
+| Bookmark IDs not found | Browser restarted (IDs change) | Re-read the tree to get fresh IDs |
 | `document.title` empty | Async callback not completed | Increase sleep time between execute and read |
 
 ## Important Notes
 
-- **Never modify the Bookmarks JSON file directly** — Chrome sync will revert changes
+- **Never modify the Bookmarks JSON file directly** — browser sync will revert changes
 - All operations go through `chrome.bookmarks.*` API → sync-safe
-- Bookmark IDs are session-stable but may change across Chrome restarts
+- Bookmark IDs are session-stable but may change across browser restarts
 - **Check both Bookmark Bar AND "Other Bookmarks"** — users may have items in both locations
 - **Always use `scripts/chrome_api.py`** — do NOT write raw AppleScript/osascript commands. The Python API handles tab management, escaping, async polling, and chunked reads automatically
 - Always call `cb.cleanup()` after using `ChromeBookmarks` directly in Python to close the helper tab
+- **Use `-b doubao` for 豆包浏览器** — all commands and Python API support the `browser` parameter
